@@ -1,3 +1,5 @@
+vorrei che ogni volta che qualcuno fa accedi con spotify, debba essere reinderizzato sempre alla pagina per l'accesso a spotify:
+
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
@@ -9,20 +11,20 @@ const app = express();
 const port = process.env.PORT;
 
 // Variabili ambiente obbligatorie
-const clientId = process.env.SPOTIFY_CLIENT_ID;
-const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirectUri = process.env.REDIRECT_URI;
+const clientId = process.env.SPOTIFY\_CLIENT\_ID;
+const clientSecret = process.env.SPOTIFY\_CLIENT\_SECRET;
+const redirectUri = process.env.REDIRECT\_URI;
 
 if (!clientId || !clientSecret || !redirectUri) {
-console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
+console.error("⚠️  Configurare SPOTIFY\_CLIENT\_ID, SPOTIFY\_CLIENT\_SECRET e REDIRECT\_URI nel file .env!");
 process.exit(1);
 }
 
 // Configurazione middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(\_\_dirname, 'public')));
 app.use(session({
-secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
+secret: process.env.SESSION\_SECRET || 'change-this-secret-in-production',
 resave: false,
 saveUninitialized: true,
 cookie: { maxAge: 3600000, sameSite: 'lax' }
@@ -37,9 +39,9 @@ res.status(status).send(`     <html>       <head><title>Errore</title><link rel=
 function getSpotifyAuthUrl() {
 const scopes = 'playlist-read-private';
 const params = new URLSearchParams({
-client_id: clientId,
-response_type: 'code',
-redirect_uri: redirectUri,
+client\_id: clientId,
+response\_type: 'code',
+redirect\_uri: redirectUri,
 scope: scopes,
 });
 return `https://accounts.spotify.com/authorize?${params.toString()}`;
@@ -49,8 +51,8 @@ async function getAccessToken(code) {
 const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 const params = querystring.stringify({
 code,
-redirect_uri: redirectUri,
-grant_type: 'authorization_code',
+redirect\_uri: redirectUri,
+grant\_type: 'authorization\_code',
 });
 
 const response = await axios.post('[https://accounts.spotify.com/api/token](https://accounts.spotify.com/api/token)', params, {
@@ -61,9 +63,9 @@ Authorization: `Basic ${authHeader}`,
 });
 if (response.status === 200) {
 return {
-access_token: response.data.access_token,
-refresh_token: response.data.refresh_token,
-expires_in: response.data.expires_in,
+access\_token: response.data.access\_token,
+refresh\_token: response.data.refresh\_token,
+expires\_in: response.data.expires\_in,
 };
 } else {
 throw new Error('Errore ottenendo token di accesso');
@@ -73,8 +75,8 @@ throw new Error('Errore ottenendo token di accesso');
 async function refreshAccessToken(refreshToken) {
 const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 const params = querystring.stringify({
-grant_type: 'refresh_token',
-refresh_token: refreshToken,
+grant\_type: 'refresh\_token',
+refresh\_token: refreshToken,
 });
 
 const response = await axios.post('[https://accounts.spotify.com/api/token](https://accounts.spotify.com/api/token)', params, {
@@ -85,8 +87,8 @@ Authorization: `Basic ${authHeader}`,
 });
 if (response.status === 200) {
 return {
-access_token: response.data.access_token,
-expires_in: response.data.expires_in,
+access\_token: response.data.access\_token,
+expires\_in: response.data.expires\_in,
 };
 } else {
 throw new Error('Errore rinfrescando token');
@@ -95,7 +97,7 @@ throw new Error('Errore rinfrescando token');
 
 // Middleware: proteggi routes tranne start/login/callback
 function checkAccessToken(req, res, next) {
-const publicPaths = ['/start', '/login', '/callback'];
+const publicPaths = \['/start', '/login', '/callback'];
 if (publicPaths.includes(req.path)) return next();
 if (!req.session.accessToken) {
 return res.redirect('/start');
@@ -122,8 +124,8 @@ if (!code) return handleError(res, 'Nessun codice fornito', 400);
 
 try {
 const tokens = await getAccessToken(code);
-req.session.accessToken = tokens.access_token;
-req.session.refreshToken = tokens.refresh_token;
+req.session.accessToken = tokens.access\_token;
+req.session.refreshToken = tokens.refresh\_token;
 res.redirect('/');
 } catch (err) {
 console.error('Errore token:', err);
@@ -138,7 +140,7 @@ app.use(checkAccessToken);
 app.get('/', async (req, res) => {
 const accessToken = req.session.accessToken;
 try {
-let playlists = [];
+let playlists = \[];
 let nextUrl = '[https://api.spotify.com/v1/me/playlists?limit=50](https://api.spotify.com/v1/me/playlists?limit=50)';
 
 ```
@@ -201,7 +203,7 @@ handleError(res, 'Impossibile recuperare le playlist. Riprova più tardi.');
 });
 
 // Dettaglio playlist
-app.get('/playlist/:id', async (req, res) => {
+app.get('/playlist/\:id', async (req, res) => {
 const accessToken = req.session.accessToken;
 const playlistId = req.params.id;
 
@@ -316,7 +318,7 @@ handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più
 });
 
 // Dettaglio album con confronto con playlist
-app.get('/album/:id', async (req, res) => {
+app.get('/album/\:id', async (req, res) => {
 const accessToken = req.session.accessToken;
 const albumId = req.params.id;
 const playlistId = req.query.playlistId;
