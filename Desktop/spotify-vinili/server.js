@@ -374,9 +374,8 @@ app.get('/album/:id', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>${album.name} - </h1>
-          <h1>${album.artists.map(a => a.name).join(', ')}</h1>
-          <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 500px;" />
+          <h1>${album.name} - ${album.artists.map(a => a.name).join(', ')}</h1>
+          <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
           <ol>
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
