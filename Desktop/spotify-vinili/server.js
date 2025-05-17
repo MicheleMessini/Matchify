@@ -11,7 +11,7 @@ const port = process.env.PORT;
 // Variabili ambiente obbligatorie
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirectUri = https://matchify.onrender.com/callback;
+const redirectUri = process.env.redirectUri;
 
 if (!clientId || !clientSecret || !redirectUri) {
   console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
