@@ -113,8 +113,6 @@ function checkAccessToken(req, res, next) {
   next();
 }
 
-// ROUTES
-
 // Pagina iniziale login
 app.get('/start', (req, res) => {
   res.send(`
@@ -267,7 +265,12 @@ app.get('/playlist/:id', async (req, res) => {
       totalTracks: a.totalTracks
     }));
 
-    albums.sort((a, b) => b.tracksPresent - a.tracksPresent);
+    // Ordina per percentuale tracce presenti
+    albums.sort((a, b) => {
+      const percA = a.totalTracks > 0 ? a.tracksPresent / a.totalTracks : 0;
+      const percB = b.totalTracks > 0 ? b.tracksPresent / b.totalTracks : 0;
+      return percB - percA;
+    });
 
     const page = parseInt(req.query.page) || 1;
     const perPage = 15;
