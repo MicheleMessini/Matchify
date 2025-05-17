@@ -107,10 +107,9 @@ async function refreshAccessToken(refreshToken) {
 function checkAccessToken(req, res, next) {
   const publicPaths = ['/start', '/login', '/callback'];
   if (publicPaths.includes(req.path)) return next();
-  if (!req.session.accessToken) {
-    return res.redirect('/start');
-  }
-  next();
+
+  // Forza il login sempre: ignora token in sessione
+  return res.redirect('/login');
 }
 
 // Pagina iniziale login
