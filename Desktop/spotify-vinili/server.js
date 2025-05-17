@@ -30,7 +30,7 @@ app.use(session({
 
 // Helpers
 function handleError(res, message, status = 500) {
-  res.status(status).send(
+  res.status(status).send(`
     <html>
       <head><title>Errore</title><link rel="stylesheet" href="/styles.css"></head>
       <body>
@@ -41,7 +41,7 @@ function handleError(res, message, status = 500) {
         </div>
       </body>
     </html>
-  );
+  `);
 }
 
 function getSpotifyAuthUrl() {
@@ -52,11 +52,11 @@ function getSpotifyAuthUrl() {
     redirect_uri: redirectUri,
     scope: scopes,
   });
-  return https://accounts.spotify.com/authorize?${params.toString()};
+  return `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
 async function getAccessToken(code) {
-  const authHeader = Buffer.from(${clientId}:${clientSecret}).toString('base64');
+  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const params = querystring.stringify({
     code,
     redirect_uri: redirectUri,
@@ -65,7 +65,7 @@ async function getAccessToken(code) {
 
   const response = await axios.post('https://accounts.spotify.com/api/token', params, {
     headers: {
-      Authorization: Basic ${authHeader},
+      Authorization: `Basic ${authHeader}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   });
@@ -81,7 +81,7 @@ async function getAccessToken(code) {
 }
 
 async function refreshAccessToken(refreshToken) {
-  const authHeader = Buffer.from(${clientId}:${clientSecret}).toString('base64');
+  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const params = querystring.stringify({
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
@@ -89,7 +89,7 @@ async function refreshAccessToken(refreshToken) {
 
   const response = await axios.post('https://accounts.spotify.com/api/token', params, {
     headers: {
-      Authorization: Basic ${authHeader},
+      Authorization: `Basic ${authHeader}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   });
@@ -115,7 +115,7 @@ function checkAccessToken(req, res, next) {
 
 // Pagina iniziale login
 app.get('/start', (req, res) => {
-  res.send(
+  res.send(`
     <html>
       <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>
       <body>
@@ -125,7 +125,7 @@ app.get('/start', (req, res) => {
         </div>
       </body>
     </html>
-  );
+  `);
 });
 
 // Login: redirect a Spotify
@@ -162,7 +162,7 @@ app.get('/', async (req, res) => {
 
     while (nextUrl) {
       const response = await axios.get(nextUrl, {
-        headers: { Authorization: Bearer ${accessToken} }
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       playlists.push(...response.data.items);
       nextUrl = response.data.next;
@@ -175,7 +175,7 @@ app.get('/', async (req, res) => {
     const totalPages = Math.ceil(playlists.length / perPage);
     const paginated = playlists.slice((page - 1) * perPage, page * perPage);
 
-    const html = 
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -187,7 +187,7 @@ app.get('/', async (req, res) => {
         <div class="container">
           <h1>Le tue Playlist Spotify</h1>
           <div class="row">
-            ${paginated.map(p => 
+            ${paginated.map(p => `
               <div class="col-md-4">
                 <div class="card">
                   <a href="/playlist/${p.id}" class="card">
@@ -200,15 +200,16 @@ app.get('/', async (req, res) => {
                   </a>
                 </div>
               </div>
-            ).join('')}
+            `).join('')}
           </div>
           <div class="pagination">
-            ${page > 1 ? <a href="/?page=${page - 1}" class="btn btn-primary">Precedente</a> : ''}
-            ${page < totalPages ? <a href="/?page=${page + 1}" class="btn btn-primary">Successivo</a> : ''}
+            ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
+            ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
           </div>
         </div>
       </body>
-      </html>;
+      </html>
+    `;
     res.send(html);
   } catch (err) {
     console.error('Errore playlist:', err.message);
@@ -223,17 +224,17 @@ app.get('/playlist/:id', async (req, res) => {
 
   try {
     // Info playlist
-    const playlistResponse = await axios.get(https://api.spotify.com/v1/playlists/${playlistId}, {
-      headers: { Authorization: Bearer ${accessToken} }
+    const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
     const playlist = playlistResponse.data;
 
     // Tracce playlist
     let tracks = [];
-    let nextUrl = https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100;
+    let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
     while (nextUrl) {
       const response = await axios.get(nextUrl, {
-        headers: { Authorization: Bearer ${accessToken} }
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       tracks.push(...response.data.items);
       nextUrl = response.data.next;
@@ -278,7 +279,7 @@ app.get('/playlist/:id', async (req, res) => {
     const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
     // HTML
-    const html = 
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -293,7 +294,7 @@ app.get('/playlist/:id', async (req, res) => {
           <p style="text-align:center;">Numero tracce: ${playlist.tracks.total}</p>
           <h2>Album presenti nella playlist</h2>
           <div class="row">
-            ${paginatedAlbums.map(album => 
+            ${paginatedAlbums.map(album => `
               <div class="col-md-4">
                 <div class="card">
                   <a href="/album/${album.id}?playlistId=${playlistId}" class="card-link">
@@ -309,17 +310,17 @@ app.get('/playlist/:id', async (req, res) => {
                   </a>
                 </div>
               </div>
-            ).join('')}
+            `).join('')}
           </div>
           <div class="pagination">
-            ${page > 1 ? <a href="/playlist/${playlistId}?page=${page - 1}" class="btn btn-primary">Precedente</a> : ''}
-            ${page < totalPages ? <a href="/playlist/${playlistId}?page=${page + 1}" class="btn btn-primary">Successivo</a> : ''}
+            ${page > 1 ? `<a href="/playlist/${playlistId}?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
+            ${page < totalPages ? `<a href="/playlist/${playlistId}?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
           </div>
           <p><a href="/" class="btn btn-secondary">Torna alle playlist</a></p>
         </div>
       </body>
       </html>
-    ;
+    `;
 
     res.send(html);
   } catch (err) {
@@ -336,8 +337,8 @@ app.get('/album/:id', async (req, res) => {
 
   try {
     // Recupera dati dell'album
-    const albumResponse = await axios.get(https://api.spotify.com/v1/albums/${albumId}, {
-      headers: { Authorization: Bearer ${accessToken} }
+    const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${albumId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
     const album = albumResponse.data;
     const albumTracks = album.tracks.items;
@@ -345,10 +346,10 @@ app.get('/album/:id', async (req, res) => {
     // Recupera gli URI delle tracce della playlist, se playlistId è fornito
     let playlistTrackUris = [];
     if (playlistId) {
-      let nextUrl = https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100;
+      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
       while (nextUrl) {
         const playlistResponse = await axios.get(nextUrl, {
-          headers: { Authorization: Bearer ${accessToken} }
+          headers: { Authorization: `Bearer ${accessToken}` }
         });
         const items = playlistResponse.data.items;
         playlistTrackUris.push(
@@ -364,7 +365,7 @@ app.get('/album/:id', async (req, res) => {
     const percentuale = totaleTracce === 0 ? 0 : Math.round((traccePresenti / totaleTracce) * 100);
 
     // Costruisci l’HTML di risposta
-    const html = 
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -380,16 +381,16 @@ app.get('/album/:id', async (req, res) => {
             Tracce:
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
-              return <li style="color: ${presente ? 'green' : 'red'}">
+              return `<li style="color: ${presente ? 'green' : 'red'}">
                         ${track.name} ${presente ? '✅' : '❌'}
-                      </li>;
+                      </li>`;
             }).join('')}
           </ol>
           <p><a href="javascript:history.back()" class="btn btn-secondary">Torna indietro</a></p>
         </div>
       </body>
       </html>
-    ;
+    `;
 
     res.send(html);
   } catch (err) {
@@ -399,4 +400,4 @@ app.get('/album/:id', async (req, res) => {
 });
 
 // Avvio server
-app.listen(port, () => console.log(Server avviato sulla porta ${port}));
+app.listen(port, () => console.log(`Server avviato sulla porta ${port}`));
