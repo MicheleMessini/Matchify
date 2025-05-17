@@ -4,82 +4,44 @@ const path = require('path');
 const axios = require('axios');
 const session = require('express-session');
 const querystring = require('querystring');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const winston = require('winston');
 
 const app = express();
 const port = process.env.PORT;
-
-// Logger configurato con winston
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message }) => {
-      return `[${timestamp}] ${level}: ${message}`;
-    })
-  ),
-  transports: [new winston.transports.Console()]
-});
 
 // Variabili ambiente obbligatorie
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirectUri = process.env.REDIRECT_URI;
-const sessionSecret = process.env.SESSION_SECRET;
 
-if (!clientId || !clientSecret || !redirectUri || !sessionSecret) {
-  logger.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URI e SESSION_SECRET nel file .env!");
+if (!clientId || !clientSecret || !redirectUri) {
+  console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
   process.exit(1);
 }
 
-// Sicurezza HTTP headers
-app.use(helmet());
-
-// Rate limiting base (100 richieste ogni 15 minuti per IP)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Troppe richieste dalla tua IP, riprova più tardi.'
-});
-app.use(limiter);
-
-// Form e statici
+// Configurazione middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Sessione sicura
 app.use(session({
-  secret: sessionSecret,
+  secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
   resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 3600000,
-    sameSite: 'lax',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production'
-  }
+  saveUninitialized: true,
+  cookie: { maxAge: 3600000, sameSite: 'lax' }
 }));
 
 // Helpers
-function renderError(message) {
-  return `
-    <!DOCTYPE html>
+function handleError(res, message, status = 500) {
+  res.status(status).send(`
     <html>
-    <head>
-      <title>Errore</title>
-      <link rel="stylesheet" href="/styles.css">
-    </head>
-    <body>
-      <div class="container">
-        <h2>❌ Errore</h2>
-        <p>${message}</p>
-        <a href="/" class="btn btn-secondary">Torna alla home</a>
-      </div>
-    </body>
+      <head><title>Errore</title><link rel="stylesheet" href="/styles.css"></head>
+      <body>
+        <div class="container">
+          <h2>❌ Errore</h2>
+          <p>${message}</p>
+          <a href="/" class="btn btn-secondary">Torna alla home</a>
+        </div>
+      </body>
     </html>
-  `;
+  `);
 }
 
 function getSpotifyAuthUrl() {
@@ -112,7 +74,6 @@ async function getAccessToken(code) {
       access_token: response.data.access_token,
       refresh_token: response.data.refresh_token,
       expires_in: response.data.expires_in,
-      obtained_at: Date.now()
     };
   } else {
     throw new Error('Errore ottenendo token di accesso');
@@ -136,40 +97,15 @@ async function refreshAccessToken(refreshToken) {
     return {
       access_token: response.data.access_token,
       expires_in: response.data.expires_in,
-      obtained_at: Date.now()
     };
   } else {
     throw new Error('Errore rinfrescando token');
   }
 }
 
-// Middleware: refresh automatico accessToken se scaduto
-async function checkAndRefreshToken(req, res, next) {
-  if (!req.session.accessToken || !req.session.expiresIn || !req.session.obtainedAt) {
-    return next();
-  }
-  const now = Date.now();
-  // Aggiorna 1 minuto prima della scadenza
-  if (now >= (req.session.obtainedAt + (req.session.expiresIn - 60) * 1000)) {
-    // Refresh
-    try {
-      const refreshed = await refreshAccessToken(req.session.refreshToken);
-      req.session.accessToken = refreshed.access_token;
-      req.session.expiresIn = refreshed.expires_in;
-      req.session.obtainedAt = refreshed.obtained_at;
-      logger.info('Access token aggiornato tramite refresh token');
-    } catch (err) {
-      logger.error('Errore refresh token: ' + err.message);
-      req.session.destroy(() => res.redirect('/start'));
-      return;
-    }
-  }
-  next();
-}
-
-// Middleware: proteggi routes tranne start/login/callback/logout
+// Middleware: proteggi routes tranne start/login/callback
 function checkAccessToken(req, res, next) {
-  const publicPaths = ['/start', '/login', '/callback', '/logout'];
+  const publicPaths = ['/start', '/login', '/callback'];
   if (publicPaths.includes(req.path)) return next();
   if (!req.session.accessToken) {
     return res.redirect('/start');
@@ -177,31 +113,17 @@ function checkAccessToken(req, res, next) {
   next();
 }
 
-// Middleware: logging richieste
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.url}`);
-  next();
-});
-
-// Middleware applicati globalmente
-app.use(checkAndRefreshToken);
-app.use(checkAccessToken);
-
 // Pagina iniziale login
 app.get('/start', (req, res) => {
   res.send(`
-    <!DOCTYPE html>
     <html>
-    <head>
-      <title>Login Spotify</title>
-      <link rel="stylesheet" href="/styles.css">
-    </head>
-    <body>
-      <div class="container">
-        <h1>Benvenuto</h1>
-        <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
-      </div>
-    </body>
+      <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>
+      <body>
+        <div class="container">
+          <h1>Benvenuto</h1>
+          <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
+        </div>
+      </body>
     </html>
   `);
 });
@@ -212,33 +134,24 @@ app.get('/login', (req, res) => {
   res.redirect(authUrl);
 });
 
-// Logout: distruggi sessione
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/start');
-  });
-});
-
 // Callback OAuth Spotify
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) {
-    res.status(400).send(renderError('Nessun codice fornito'));
-    return;
-  }
+  if (!code) return handleError(res, 'Nessun codice fornito', 400);
 
   try {
     const tokens = await getAccessToken(code);
     req.session.accessToken = tokens.access_token;
     req.session.refreshToken = tokens.refresh_token;
-    req.session.expiresIn = tokens.expires_in;
-    req.session.obtainedAt = tokens.obtained_at;
     res.redirect('/');
   } catch (err) {
-    logger.error('Errore token: ' + err.message);
-    res.status(500).send(renderError('Errore autenticazione Spotify'));
+    console.error('Errore token:', err);
+    handleError(res, 'Errore autenticazione Spotify');
   }
 });
+
+// Proteggi tutte le route successive
+app.use(checkAccessToken);
 
 // Home: lista playlist utente
 app.get('/', async (req, res) => {
@@ -262,7 +175,7 @@ app.get('/', async (req, res) => {
     const totalPages = Math.ceil(playlists.length / perPage);
     const paginated = playlists.slice((page - 1) * perPage, page * perPage);
 
-    res.send(`
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -273,13 +186,12 @@ app.get('/', async (req, res) => {
       <body>
         <div class="container">
           <h1>Le tue Playlist Spotify</h1>
-          <a href="/logout" class="btn btn-secondary" style="float:right;">Logout</a>
           <div class="row">
             ${paginated.map(p => `
               <div class="col-md-4">
                 <div class="card">
                   <a href="/playlist/${p.id}" class="card">
-                    <img src="${p.images?.[0]?.url || ''}" alt="${p.name}" class="card-img-top" style="max-width:100%">
+                    <img src="${p.images?.[0]?.url || ''}" alt="${p.name}" class="card-img-top">
                     <div class="card-body">
                       <h5 class="card-title">${p.name}</h5>
                       <p class="card-text">Proprietario: ${p.owner.display_name}</p>
@@ -297,10 +209,11 @@ app.get('/', async (req, res) => {
         </div>
       </body>
       </html>
-    `);
+    `;
+    res.send(html);
   } catch (err) {
-    logger.error('Errore playlist: ' + err.message);
-    res.status(500).send(renderError('Impossibile recuperare le playlist. Riprova più tardi.'));
+    console.error('Errore playlist:', err.message);
+    handleError(res, 'Impossibile recuperare le playlist. Riprova più tardi.');
   }
 });
 
@@ -332,7 +245,7 @@ app.get('/playlist/:id', async (req, res) => {
     for (const item of tracks) {
       const track = item.track;
       if (!track || !track.album) continue;
-      if (track.album.album_type !== 'album') continue;
+      if (track.album.album_type !== 'album') continue;  // esclude singoli, podcast ecc.
       const albumId = track.album.id;
       if (!albumsMap.has(albumId)) {
         albumsMap.set(albumId, {
@@ -357,6 +270,7 @@ app.get('/playlist/:id', async (req, res) => {
       };
     });
 
+    // Ordina per percentuale tracce presenti
     albums.sort((a, b) => b.percentuale - a.percentuale);
 
     const page = parseInt(req.query.page) || 1;
@@ -364,7 +278,8 @@ app.get('/playlist/:id', async (req, res) => {
     const totalPages = Math.ceil(albums.length / perPage);
     const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
-    res.send(`
+    // HTML
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -405,10 +320,12 @@ app.get('/playlist/:id', async (req, res) => {
         </div>
       </body>
       </html>
-    `);
+    `;
+
+    res.send(html);
   } catch (err) {
-    logger.error('Errore dettaglio playlist: ' + err.message);
-    res.status(500).send(renderError('Impossibile recuperare i dettagli della playlist. Riprova più tardi.'));
+    console.error('Errore nel dettaglio playlist:', err.message);
+    handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più tardi.');
   }
 });
 
@@ -442,11 +359,13 @@ app.get('/album/:id', async (req, res) => {
       }
     }
 
+    // Calcola la percentuale di tracce dell'album presenti nella playlist
     const totaleTracce = albumTracks.length;
     const traccePresenti = albumTracks.filter(track => playlistTrackUris.includes(track.uri)).length;
     const percentuale = totaleTracce === 0 ? 0 : Math.round((traccePresenti / totaleTracce) * 100);
 
-    res.send(`
+    // Costruisci l’HTML di risposta
+    const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
@@ -467,23 +386,18 @@ app.get('/album/:id', async (req, res) => {
                       </li>`;
             }).join('')}
           </ol>
-          <p>Presenti nella playlist: ${traccePresenti} su ${totaleTracce} (${percentuale}%)</p>
           <p><a href="javascript:history.back()" class="btn btn-secondary">Torna indietro</a></p>
         </div>
       </body>
       </html>
-    `);
+    `;
+
+    res.send(html);
   } catch (err) {
-    logger.error('Errore dettaglio album: ' + err.message);
-    res.status(500).send(renderError('Impossibile recuperare i dettagli dell\'album. Riprova più tardi.'));
+    console.error('Errore nel dettaglio album:', err.message);
+    handleError(res, 'Impossibile recuperare i dettagli dell\'album. Riprova più tardi.');
   }
 });
 
-// Middleware errori Express centralizzato
-app.use((err, req, res, next) => {
-  logger.error('Errore Express handler: ' + err.message);
-  res.status(500).send(renderError('Errore interno del server. Riprova più tardi.'));
-});
-
 // Avvio server
-app.listen(port, () => logger.info(`Server avviato sulla porta ${port}`));
+app.listen(port, () => console.log(`Server avviato sulla porta ${port}`));
