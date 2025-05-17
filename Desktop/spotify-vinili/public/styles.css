@@ -151,8 +151,9 @@ ol li:hover {
 .card-img-top {
   width: 100%;
   height: 200px;
-  object-fit: cover;
+  object-fit: contain;
   border-bottom: 1px solid hsla(var(--border), 0.1);
+  background-color: hsl(var(--surface)); /* per evitare spazi vuoti trasparenti */
 }
 
 .card-body {
