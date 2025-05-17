@@ -256,21 +256,21 @@ app.get('/playlist/:id', async (req, res) => {
       albumsMap.get(albumId).tracksInPlaylist.add(track.id);
     }
 
-    const albums = Array.from(albumsMap.values()).map(a => ({
-      id: a.album.id,
-      name: a.album.name,
-      artist: a.album.artists.map(ar => ar.name).join(', '),
-      image: a.album.images[0]?.url || '',
-      tracksPresent: a.tracksInPlaylist.size,
-      totalTracks: a.totalTracks
-    }));
+    const albums = Array.from(albumsMap.values()).map(a => {
+      const perc = a.totalTracks === 0 ? 0 : Math.round((a.tracksInPlaylist.size / a.totalTracks) * 100);
+      return {
+        id: a.album.id,
+        name: a.album.name,
+        artist: a.album.artists.map(ar => ar.name).join(', '),
+        image: a.album.images[0]?.url || '',
+        tracksPresent: a.tracksInPlaylist.size,
+        totalTracks: a.totalTracks,
+        percentuale: perc
+      };
+    });
 
     // Ordina per percentuale tracce presenti
-    albums.sort((a, b) => {
-      const percA = a.totalTracks > 0 ? a.tracksPresent / a.totalTracks : 0;
-      const percB = b.totalTracks > 0 ? b.tracksPresent / b.totalTracks : 0;
-      return percB - percA;
-    });
+    albums.sort((a, b) => b.percentuale - a.percentuale);
 
     const page = parseInt(req.query.page) || 1;
     const perPage = 15;
@@ -301,7 +301,10 @@ app.get('/playlist/:id', async (req, res) => {
                     <div class="card-body">
                       <h5 class="card-title">${album.name}</h5>
                       <p class="card-text">Artista: ${album.artist}</p>
-                      <p class="card-text">Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks}</p>
+                      <p class="card-text">
+                        Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} 
+                        <strong>(${album.percentuale}%)</strong>
+                      </p>
                     </div>
                   </a>
                 </div>
