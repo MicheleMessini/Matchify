@@ -9,9 +9,9 @@ const app = express();
 const port = process.env.PORT;
 
 // Variabili ambiente obbligatorie
-const clientId = process.env.SPOTIFY\_CLIENT\_ID;
-const clientSecret = process.env.SPOTIFY\_CLIENT\_SECRET;
-const redirectUri = process.env.REDIRECT\_URI;
+const clientId = process.env.SPOTIFY_CLIENT_ID;
+const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+const redirectUri = process.env.REDIRECT_URI;
 
 if (!clientId || !clientSecret || !redirectUri) {
 console.error("⚠️  Configurare SPOTIFY\_CLIENT\_ID, SPOTIFY\_CLIENT\_SECRET e REDIRECT\_URI nel file .env!");
