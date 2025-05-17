@@ -332,14 +332,14 @@ app.get('/album/:id', async (req, res) => {
   const playlistId = req.query.playlistId;
 
   try {
-    // Dati dell'album
+    // Recupera dati dell'album
     const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${albumId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const album = albumResponse.data;
     const albumTracks = album.tracks.items;
 
-    // Recupera le tracce della playlist (se presente playlistId)
+    // Recupera gli URI delle tracce della playlist, se playlistId è fornito
     let playlistTrackUris = [];
     if (playlistId) {
       let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
@@ -355,7 +355,12 @@ app.get('/album/:id', async (req, res) => {
       }
     }
 
-    // HTML dell'album
+    // Calcola la percentuale di tracce dell'album presenti nella playlist
+    const totaleTracce = albumTracks.length;
+    const traccePresenti = albumTracks.filter(track => playlistTrackUris.includes(track.uri)).length;
+    const percentuale = totaleTracce === 0 ? 0 : Math.round((traccePresenti / totaleTracce) * 100);
+
+    // Costruisci l’HTML di risposta
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -369,7 +374,8 @@ app.get('/album/:id', async (req, res) => {
           <h1>Album: ${album.name}</h1>
           <p>Artista: ${album.artists.map(a => a.name).join(', ')}</p>
           <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
-          <h2>Tracce dell'album (${albumTracks.length})</h2>
+          <h2>Tracce dell'album (${totaleTracce})</h2>
+          <p><strong>Percentuale tracce presenti nella playlist: ${percentuale}%</strong></p>
           <ol>
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
