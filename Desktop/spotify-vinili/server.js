@@ -6,7 +6,7 @@ const session = require('express-session');
 const querystring = require('querystring');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 // Variabili ambiente obbligatorie
 const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -121,7 +121,7 @@ app.get('/start', (req, res) => {
       <body>
         <div class="container">
           <h1>Benvenuto</h1>
-          <p><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
+          <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
         </div>
       </body>
     </html>
