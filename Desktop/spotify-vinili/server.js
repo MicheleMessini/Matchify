@@ -1,5 +1,3 @@
-vorrei che ogni volta che qualcuno fa accedi con spotify, debba essere reinderizzato sempre alla pagina per l'accesso a spotify:
-
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
