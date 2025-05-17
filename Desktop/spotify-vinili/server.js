@@ -289,8 +289,8 @@ app.get('/playlist/:id', async (req, res) => {
       <body>
         <div class="container">
           <h1>Playlist: ${playlist.name}</h1>
-          <p>Proprietario: ${playlist.owner.display_name}</p>
-          <p>Numero tracce: ${playlist.tracks.total}</p>
+          <p style="text-align:center;">Proprietario: ${playlist.owner.display_name}
+          Numero tracce: ${playlist.tracks.total}</p>
           <h2>Album presenti nella playlist</h2>
           <div class="row">
             ${paginatedAlbums.map(album => `
@@ -377,6 +377,7 @@ app.get('/album/:id', async (req, res) => {
           <h1>${album.name} - ${album.artists.map(a => a.name).join(', ')}</h1>
           <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
           <ol>
+            Tracce:
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
               return `<li style="color: ${presente ? 'green' : 'red'}">
