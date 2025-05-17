@@ -6,7 +6,18 @@ const session = require('express-session');
 const querystring = require('querystring');
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
+
+// Funzione per escape HTML (contro XSS)
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // Variabili ambiente obbligatorie
 const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -36,7 +47,7 @@ function handleError(res, message, status = 500) {
       <body>
         <div class="container">
           <h2>❌ Errore</h2>
-          <p>${message}</p>
+          <p>${escapeHtml(message)}</p>
           <a href="/" class="btn btn-secondary">Torna alla home</a>
         </div>
       </body>
@@ -170,7 +181,7 @@ app.get('/', async (req, res) => {
 
     playlists.sort((a, b) => b.tracks.total - a.tracks.total);
 
-    const page = parseInt(req.query.page) || 1;
+    const page = Math.max(1, parseInt(req.query.page) || 1); // Fix: sempre >= 1
     const perPage = 6;
     const totalPages = Math.ceil(playlists.length / perPage);
     const paginated = playlists.slice((page - 1) * perPage, page * perPage);
@@ -190,11 +201,11 @@ app.get('/', async (req, res) => {
             ${paginated.map(p => `
               <div class="col-md-4">
                 <div class="card">
-                  <a href="/playlist/${p.id}" class="card">
-                    <img src="${p.images?.[0]?.url || ''}" alt="${p.name}" class="card-img-top">
+                  <a href="/playlist/${escapeHtml(p.id)}" class="card">
+                    <img src="${escapeHtml(p.images?.[0]?.url || '')}" alt="${escapeHtml(p.name)}" class="card-img-top">
                     <div class="card-body">
-                      <h5 class="card-title">${p.name}</h5>
-                      <p class="card-text">Proprietario: ${p.owner.display_name}</p>
+                      <h5 class="card-title">${escapeHtml(p.name)}</h5>
+                      <p class="card-text">Proprietario: ${escapeHtml(p.owner.display_name)}</p>
                       <p class="card-text">Tracce: ${p.tracks.total}</p>
                     </div>
                   </a>
@@ -224,14 +235,14 @@ app.get('/playlist/:id', async (req, res) => {
 
   try {
     // Info playlist
-    const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+    const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const playlist = playlistResponse.data;
 
     // Tracce playlist
     let tracks = [];
-    let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
     while (nextUrl) {
       const response = await axios.get(nextUrl, {
         headers: { Authorization: `Bearer ${accessToken}` }
@@ -273,7 +284,7 @@ app.get('/playlist/:id', async (req, res) => {
     // Ordina per percentuale tracce presenti
     albums.sort((a, b) => b.percentuale - a.percentuale);
 
-    const page = parseInt(req.query.page) || 1;
+    const page = Math.max(1, parseInt(req.query.page) || 1); // Fix: sempre >= 1
     const perPage = 15;
     const totalPages = Math.ceil(albums.length / perPage);
     const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
@@ -284,24 +295,24 @@ app.get('/playlist/:id', async (req, res) => {
       <html lang="it">
       <head>
         <meta charset="UTF-8" />
-        <title>Dettaglio Playlist - ${playlist.name}</title>
+        <title>Dettaglio Playlist - ${escapeHtml(playlist.name)}</title>
         <link rel="stylesheet" href="/styles.css" />
       </head>
       <body>
         <div class="container">
-          <h1>Playlist: ${playlist.name}</h1>
-          <p style="text-align:center;">Proprietario: ${playlist.owner.display_name}</p>
+          <h1>Playlist: ${escapeHtml(playlist.name)}</h1>
+          <p style="text-align:center;">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
           <p style="text-align:center;">Numero tracce: ${playlist.tracks.total}</p>
           <h2>Album presenti nella playlist</h2>
           <div class="row">
             ${paginatedAlbums.map(album => `
               <div class="col-md-4">
                 <div class="card">
-                  <a href="/album/${album.id}?playlistId=${playlistId}" class="card-link">
-                    <img src="${album.image}" alt="${album.name}" class="card-img-top" />
+                  <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
+                    <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img-top" />
                     <div class="card-body">
-                      <h5 class="card-title">${album.name}</h5>
-                      <p class="card-text">Artista: ${album.artist}</p>
+                      <h5 class="card-title">${escapeHtml(album.name)}</h5>
+                      <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
                       <p class="card-text">
                         Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} 
                         <strong>(${album.percentuale}%)</strong>
@@ -313,8 +324,8 @@ app.get('/playlist/:id', async (req, res) => {
             `).join('')}
           </div>
           <div class="pagination">
-            ${page > 1 ? `<a href="/playlist/${playlistId}?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
-            ${page < totalPages ? `<a href="/playlist/${playlistId}?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
+            ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
+            ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
           </div>
           <p><a href="/" class="btn btn-secondary">Torna alle playlist</a></p>
         </div>
@@ -337,7 +348,7 @@ app.get('/album/:id', async (req, res) => {
 
   try {
     // Recupera dati dell'album
-    const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${albumId}`, {
+    const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const album = albumResponse.data;
@@ -346,7 +357,7 @@ app.get('/album/:id', async (req, res) => {
     // Recupera gli URI delle tracce della playlist, se playlistId è fornito
     let playlistTrackUris = [];
     if (playlistId) {
-      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+      let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
       while (nextUrl) {
         const playlistResponse = await axios.get(nextUrl, {
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -370,19 +381,19 @@ app.get('/album/:id', async (req, res) => {
       <html lang="it">
       <head>
         <meta charset="UTF-8" />
-        <title>Album - ${album.name}</title>
+        <title>Album - ${escapeHtml(album.name)}</title>
         <link rel="stylesheet" href="/styles.css" />
       </head>
       <body>
         <div class="container">
-          <h1>${album.name} - ${album.artists.map(a => a.name).join(', ')}</h1>
-          <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
+          <h1>${escapeHtml(album.name)} - ${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h1>
+          <img src="${escapeHtml(album.images[0]?.url || '')}" alt="${escapeHtml(album.name)}" style="max-width: 300px;" />
           <ol>
             Tracce:
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
               return `<li style="color: ${presente ? 'green' : 'red'}">
-                        ${track.name} ${presente ? '✅' : '❌'}
+                        ${escapeHtml(track.name)} ${presente ? '✅' : '❌'}
                       </li>`;
             }).join('')}
           </ol>
