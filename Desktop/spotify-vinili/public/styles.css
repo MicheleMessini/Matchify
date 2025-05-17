@@ -289,3 +289,53 @@ ol li[style^="color: red"] {
 .loading {
   animation: pulse 1.5s infinite;
 }
+
+/* MOBILE IMPROVEMENTS */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .container {
+    padding: 1rem 0.75rem;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  ol {
+    padding-left: 1rem;
+  }
+
+  ol li {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    margin: 0.25rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .card-img-top {
+    height: 150px;
+  }
+
+  .row {
+    margin: 1rem -0.5rem;
+  }
+
+  .col-md-4 {
+    padding: 0.5rem;
+  }
+}
