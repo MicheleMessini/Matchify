@@ -203,8 +203,8 @@ app.get('/', async (req, res) => {
             `).join('')}
           </div>
           <div class="pagination">
-            ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">⬅️ Precedente</a>` : ''}
-            ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo ➡️</a>` : ''}
+            ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
+            ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
           </div>
         </div>
       </body>
@@ -309,10 +309,10 @@ app.get('/playlist/:id', async (req, res) => {
             `).join('')}
           </div>
           <div class="pagination">
-            ${page > 1 ? `<a href="/playlist/${playlistId}?page=${page - 1}" class="btn btn-primary">⬅️ Precedente</a>` : ''}
-            ${page < totalPages ? `<a href="/playlist/${playlistId}?page=${page + 1}" class="btn btn-primary">Successivo ➡️</a>` : ''}
+            ${page > 1 ? `<a href="/playlist/${playlistId}?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
+            ${page < totalPages ? `<a href="/playlist/${playlistId}?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
           </div>
-          <p><a href="/" class="btn btn-secondary">⬅️ Torna alle playlist</a></p>
+          <p><a href="/" class="btn btn-secondary">Torna alle playlist</a></p>
         </div>
       </body>
       </html>
@@ -373,13 +373,12 @@ app.get('/album/:id', async (req, res) => {
           <ol>
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
-              return `<li style="color: ${presente ? 'green' : 'black'}">
-                        ${track.name} ${presente ? '✅' : ''}
+              return `<li style="color: ${presente ? 'green' : 'red'}">
+                        ${track.name} ${presente ? '✅' : '❌'}
                       </li>`;
             }).join('')}
           </ol>
-          <p><a href="javascript:history.back()" class="btn btn-secondary">⬅️ Torna indietro</a></p>
-          <p><a href="/" class="btn btn-primary">🏠 Torna Home</a></p>
+          <p><a href="javascript:history.back()" class="btn btn-secondary">Torna indietro</a></p>
         </div>
       </body>
       </html>
