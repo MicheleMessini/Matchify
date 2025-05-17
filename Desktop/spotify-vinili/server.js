@@ -187,7 +187,7 @@ app.get('/', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🎵 Le tue Playlist Spotify</h1>
+          <h1>Le tue Playlist Spotify</h1>
           <div class="row">
             ${paginated.map(p => `
               <div class="col-md-4">
@@ -230,7 +230,7 @@ app.get('/playlist/:id', async (req, res) => {
     });
     const playlist = playlistResponse.data;
 
-    // Tutte le tracce
+    // Tracce playlist
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
     while (nextUrl) {
@@ -241,7 +241,7 @@ app.get('/playlist/:id', async (req, res) => {
       nextUrl = response.data.next;
     }
 
-    // Raggruppa per album
+    // Raggruppa tracce per album
     const albumsMap = new Map();
     for (const item of tracks) {
       const track = item.track;
@@ -274,6 +274,7 @@ app.get('/playlist/:id', async (req, res) => {
     const totalPages = Math.ceil(albums.length / perPage);
     const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
+    // HTML
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -292,7 +293,7 @@ app.get('/playlist/:id', async (req, res) => {
             ${paginatedAlbums.map(album => `
               <div class="col-md-4">
                 <div class="card">
-                  <a href="/album/${album.id}" class="card-link">
+                  <a href="/album/${album.id}?playlistId=${playlistId}" class="card-link">
                     <img src="${album.image}" alt="${album.name}" class="card-img-top" />
                     <div class="card-body">
                       <h5 class="card-title">${album.name}</h5>
@@ -313,8 +314,8 @@ app.get('/playlist/:id', async (req, res) => {
       </body>
       </html>
     `;
-    res.send(html);
 
+    res.send(html);
   } catch (err) {
     console.error('Errore nel dettaglio playlist:', err.message);
     handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più tardi.');
@@ -328,26 +329,30 @@ app.get('/album/:id', async (req, res) => {
   const playlistId = req.query.playlistId;
 
   try {
-    // Ottieni i dati dell'album
+    // Dati dell'album
     const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${albumId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const album = albumResponse.data;
     const albumTracks = album.tracks.items;
 
-    // Ottieni le tracce della playlist (se playlistId è presente)
+    // Recupera le tracce della playlist (se presente playlistId)
     let playlistTrackUris = [];
     if (playlistId) {
-      const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
-      playlistTrackUris = playlistResponse.data.items
-        .map(item => item.track && item.track.uri)
-        .filter(Boolean);
+      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+      while (nextUrl) {
+        const playlistResponse = await axios.get(nextUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const items = playlistResponse.data.items;
+        playlistTrackUris.push(
+          ...items.map(item => item.track && item.track.uri).filter(Boolean)
+        );
+        nextUrl = playlistResponse.data.next;
+      }
     }
 
-    // HTML con evidenziazione tracce presenti nella playlist
+    // HTML dell'album
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -360,7 +365,7 @@ app.get('/album/:id', async (req, res) => {
         <div class="container">
           <h1>Album: ${album.name}</h1>
           <p>Artista: ${album.artists.map(a => a.name).join(', ')}</p>
-          <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;"/>
+          <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
           <h2>Tracce dell'album (${albumTracks.length})</h2>
           <ol>
             ${albumTracks.map(track => {
@@ -371,7 +376,7 @@ app.get('/album/:id', async (req, res) => {
             }).join('')}
           </ol>
           <p><a href="javascript:history.back()" class="btn btn-secondary">⬅️ Torna indietro</a></p>
-          <p><a href="/" class="btn btn-primary">Torna home</a></p>
+          <p><a href="/" class="btn btn-primary">🏠 Torna Home</a></p>
         </div>
       </body>
       </html>
