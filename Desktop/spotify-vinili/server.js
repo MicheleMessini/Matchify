@@ -246,7 +246,7 @@ app.get('/playlist/:id', async (req, res) => {
     for (const item of tracks) {
       const track = item.track;
       if (!track || !track.album) continue;
-      if (track.album.album_type !== 'album') continue;
+      if (track.album.album_type !== 'album') continue;  // esclude singoli, podcast ecc.
       const albumId = track.album.id;
       if (!albumsMap.has(albumId)) {
         albumsMap.set(albumId, {
