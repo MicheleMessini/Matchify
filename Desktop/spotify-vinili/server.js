@@ -374,11 +374,9 @@ app.get('/album/:id', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>Album: ${album.name}</h1>
-          <p>Artista: ${album.artists.map(a => a.name).join(', ')}</p>
+          <h1>${album.name}</h1>
+          <h1>Artista: ${album.artists.map(a => a.name).join(', ')}</h1>
           <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;" />
-          <h2>Tracce dell'album (${totaleTracce})</h2>
-          <p><strong>Percentuale tracce presenti nella playlist: ${percentuale}%</strong></p>
           <ol>
             ${albumTracks.map(track => {
               const presente = playlistTrackUris.includes(track.uri);
