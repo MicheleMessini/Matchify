@@ -270,7 +270,7 @@ app.get('/playlist/:id', async (req, res) => {
     albums.sort((a, b) => b.tracksPresent - a.tracksPresent);
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = 6;
+    const perPage = 15;
     const totalPages = Math.ceil(albums.length / perPage);
     const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
@@ -321,18 +321,33 @@ app.get('/playlist/:id', async (req, res) => {
   }
 });
 
-// Dettaglio album
+// Dettaglio album con confronto con playlist
 app.get('/album/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const albumId = req.params.id;
+  const playlistId = req.query.playlistId;
 
   try {
+    // Ottieni i dati dell'album
     const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${albumId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const album = albumResponse.data;
-    const tracks = album.tracks.items;
+    const albumTracks = album.tracks.items;
 
+    // Ottieni le tracce della playlist (se playlistId è presente)
+    let playlistTrackUris = [];
+    if (playlistId) {
+      const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+
+      playlistTrackUris = playlistResponse.data.items
+        .map(item => item.track && item.track.uri)
+        .filter(Boolean);
+    }
+
+    // HTML con evidenziazione tracce presenti nella playlist
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -346,9 +361,14 @@ app.get('/album/:id', async (req, res) => {
           <h1>Album: ${album.name}</h1>
           <p>Artista: ${album.artists.map(a => a.name).join(', ')}</p>
           <img src="${album.images[0]?.url || ''}" alt="${album.name}" style="max-width: 300px;"/>
-          <h2>Tracce (${tracks.length})</h2>
+          <h2>Tracce dell'album (${albumTracks.length})</h2>
           <ol>
-            ${tracks.map(t => `<li>${t.name}</li>`).join('')}
+            ${albumTracks.map(track => {
+              const presente = playlistTrackUris.includes(track.uri);
+              return `<li style="color: ${presente ? 'green' : 'black'}">
+                        ${track.name} ${presente ? '✅' : ''}
+                      </li>`;
+            }).join('')}
           </ol>
           <p><a href="javascript:history.back()" class="btn btn-secondary">⬅️ Torna indietro</a></p>
           <p><a href="/" class="btn btn-primary">Torna home</a></p>
