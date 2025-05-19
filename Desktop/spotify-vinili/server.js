@@ -156,7 +156,7 @@ app.get('/start', (req, res) => {
             elaborate temporaneamente durante la sessione attiva dell'utente.
           </p>
           <p>
-            L'accesso ai dati avviene tramite le <a href="https://developer.spotify.com/documentation/web-api/" target="_blank">API ufficiali di Spotify</a> 
+            L'accesso ai dati avviene tramite le <a href="https://developer.spotify.com/documentation/web-api/" target="_blank" rel="noopener noreferrer">API ufficiali di Spotify</a> 
             nel rispetto delle loro policy.
           </p>
           <div style="text-align: center; margin-top: 2rem;">
@@ -165,7 +165,7 @@ app.get('/start', (req, res) => {
         </div>
       </body>
     </html>
-  `);
+  `;
   res.send(html);
 });
 
