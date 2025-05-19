@@ -6,7 +6,7 @@ const session = require('express-session');
 const querystring = require('querystring');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 // Funzione per escape HTML (contro XSS)
 function escapeHtml(str) {
@@ -135,7 +135,7 @@ function checkAccessToken(req, res, next) {
 
 // Pagina iniziale login
 app.get('/start', (req, res) => {
-  res.send(`
+  const html = `
     <!DOCTYPE html>
     <html lang="it">
       <head>
@@ -166,6 +166,7 @@ app.get('/start', (req, res) => {
       </body>
     </html>
   `);
+  res.send(html);
 });
 
 // Login: redirect a Spotify
