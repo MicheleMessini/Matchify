@@ -56,25 +56,6 @@ body {
   transition: background-color var(--transition-standard), color var(--transition-standard);
 }
 
-a {
-  color: hsl(var(--primary));
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-a:hover,
-a:focus {
-  color: hsl(var(--primary-hover));
-  outline: none;
-}
-
-.container {
-  max-width: 1200px;
-  padding: 2rem;
-  margin: auto;
-  width: 100%;
-}
-
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
@@ -95,7 +76,10 @@ h2 {
   margin-top: 2rem;
 }
 
-h3 { font-size: 1.5rem; }
+h3 {
+  font-size: 1.5rem;
+}
+
 h5 {
   font-size: 1.125rem;
   margin-bottom: 0.5rem;
@@ -103,6 +87,27 @@ h5 {
 
 p {
   margin-bottom: 1rem;
+}
+
+/* Links */
+a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover,
+a:focus {
+  color: hsl(var(--primary-hover));
+  outline: none;
+}
+
+/* Layout */
+.container {
+  max-width: 1200px;
+  padding: 2rem;
+  margin: auto;
+  width: 100%;
 }
 
 /* Ordered lists */
@@ -232,6 +237,7 @@ ol li:hover {
   padding: 1rem;
 }
 
+/* Responsive */
 @media (max-width: 992px) {
   .col-md-4 {
     width: 50%;
@@ -243,12 +249,19 @@ ol li:hover {
     padding: 1.5rem 1rem;
   }
 
-  h1 { font-size: 2rem; }
-  h2 { font-size: 1.75rem; }
-  .col-md-4 { width: 100%; }
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  .col-md-4 {
+    width: 100%;
+  }
 }
 
-/* Extra Mobile Enhancements */
 @media (max-width: 480px) {
   body {
     font-size: 17px;
@@ -291,7 +304,7 @@ img[style*="max-width: 300px"] {
   height: auto;
 }
 
-/* Track status colors */
+/* Track Status */
 ol li[style^="color: green"] {
   color: hsl(var(--success)) !important;
   font-weight: 500;
@@ -304,8 +317,12 @@ ol li[style^="color: red"] {
 
 /* Loading Animation */
 @keyframes pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .loading {
