@@ -149,9 +149,15 @@ app.get('/start', (req, res) => {
 });
 
 // Login: redirect a Spotify
-app.get('/login', (req, res) => {
-  const authUrl = getSpotifyAuthUrl();
-  res.redirect(authUrl);
+app.get("/login", (req, res) => {
+  const scopes = 'playlist-read-private'; // o qualsiasi altro scope
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    scope: scopes,
+    redirect_uri: redirectUri,
+  });
+  res.redirect("https://accounts.spotify.com/authorize?" + params.toString());
 });
 
 // Callback OAuth Spotify
