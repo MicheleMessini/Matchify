@@ -136,16 +136,32 @@ function checkAccessToken(req, res, next) {
 // Pagina iniziale login
 app.get('/start', (req, res) => {
   res.send(`
-    <html>
-      <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>
+    <!DOCTYPE html>
+    <html lang="it">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Accesso Spotify</title>
+        <link rel="stylesheet" href="/styles.css" />
+      </head>
       <body>
         <div class="container">
           <h1>Benvenuto</h1>
-          <p>Privacy Policy</p>
-          <p>Questa applicazione utilizza l'accesso Spotify per mostrare all'utente le proprie playlist e verificare quali tracce di un album sono incluse.</p>
-          <p>Non raccogliamo, memorizziamo o condividiamo alcun dato personale. Tutte le informazioni sono usate solo temporaneamente durante la sessione attiva dell'utente.</p>
-          <p>L'accesso ai dati avviene tramite le API ufficiali di Spotify e secondo le loro policy.</p>
-          <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
+          <p>
+            Questa applicazione ti consente di accedere con il tuo account Spotify per visualizzare le tue playlist
+            e verificare quante tracce di ciascun album sono presenti.
+          </p>
+          <p>
+            <strong>Privacy:</strong> non raccogliamo né memorizziamo dati personali. Tutte le informazioni sono
+            elaborate temporaneamente durante la sessione attiva dell'utente.
+          </p>
+          <p>
+            L'accesso ai dati avviene tramite le <a href="https://developer.spotify.com/documentation/web-api/" target="_blank">API ufficiali di Spotify</a> 
+            nel rispetto delle loro policy.
+          </p>
+          <div style="text-align: center; margin-top: 2rem;">
+            <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
+          </div>
         </div>
       </body>
     </html>
@@ -154,11 +170,9 @@ app.get('/start', (req, res) => {
 
 // Login: redirect a Spotify
 app.get("/login", (req, res) => {
-  const scopes = 'playlist-read-private'; // o qualsiasi altro scope
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
-    scope: scopes,
     redirect_uri: redirectUri,
   });
   res.redirect("https://accounts.spotify.com/authorize?" + params.toString());
