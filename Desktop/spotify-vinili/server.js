@@ -39,6 +39,31 @@ app.use(session({
   cookie: { maxAge: 3600000, sameSite: 'lax' }
 }));
 
+function handleError(res, message, status = 500) {
+  const escapedMessage = escapeHtml(message);
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="it">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Errore</title>
+        <link rel="stylesheet" href="/styles.css" />
+      </head>
+      <body>
+        <div class="container">
+          <h2>❌ Errore</h2>
+          <p>${escapedMessage}</p>
+          <a href="/" class="btn btn-secondary">Torna alla home</a>
+        </div>
+      </body>
+    </html>
+  `;
+
+  res.status(status).send(html);
+}
+
 function getSpotifyAuthUrl() {
   const scopes = 'playlist-read-private';
   const params = new URLSearchParams({
