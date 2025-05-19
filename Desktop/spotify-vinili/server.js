@@ -10,128 +10,154 @@ const port = process.env.PORT || 3000;
 
 // Funzione per escape HTML (contro XSS)
 function escapeHtml(str) {
-if (!str) return '';
-return String(str)
-.replace(/&/g, '&')
-.replace(/\</g, '<')
-.replace(/>/g, '>')
-.replace(/"/g, '"')
-.replace(/'/g, ''');
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Variabili ambiente obbligatorie
-const clientId = process.env.SPOTIFY\_CLIENT\_ID;
-const clientSecret = process.env.SPOTIFY\_CLIENT\_SECRET;
-const redirectUri = process.env.REDIRECT\_URI;
+const clientId = process.env.SPOTIFY_CLIENT_ID;
+const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+const redirectUri = process.env.REDIRECT_URI;
 
 if (!clientId || !clientSecret || !redirectUri) {
-console.error("⚠️  Configurare SPOTIFY\_CLIENT\_ID, SPOTIFY\_CLIENT\_SECRET e REDIRECT\_URI nel file .env!");
-process.exit(1);
+  console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
+  process.exit(1);
 }
 
 // Configurazione middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(\_\_dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-secret: process.env.SESSION\_SECRET || 'change-this-secret-in-production',
-resave: false,
-saveUninitialized: true,
-cookie: { maxAge: 3600000, sameSite: 'lax' }
+  secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 3600000, sameSite: 'lax' }
 }));
 
 function handleError(res, message, status = 500) {
-const escapedMessage = escapeHtml(message);
+  const escapedMessage = escapeHtml(message);
 
-const html = `     <!DOCTYPE html>     <html lang="it">       <head>         <meta charset="UTF-8" />         <meta name="viewport" content="width=device-width, initial-scale=1.0" />         <title>Errore</title>         <link rel="stylesheet" href="/styles.css" />       </head>       <body>         <div class="container">           <h2>❌ Errore</h2>           <p>${escapedMessage}</p>           <a href="/" class="btn btn-secondary">Torna alla home</a>         </div>       </body>     </html>
+  const html = `
+    <!DOCTYPE html>
+    <html lang="it">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Errore</title>
+        <link rel="stylesheet" href="/styles.css" />
+      </head>
+      <body>
+        <div class="container">
+          <h2>❌ Errore</h2>
+          <p>${escapedMessage}</p>
+          <a href="/" class="btn btn-secondary">Torna alla home</a>
+        </div>
+      </body>
+    </html>
   `;
 
-res.status(status).send(html);
+  res.status(status).send(html);
 }
 
 function getSpotifyAuthUrl() {
-const scopes = 'playlist-read-private';
-const params = new URLSearchParams({
-client\_id: clientId,
-response\_type: 'code',
-redirect\_uri: redirectUri,
-scope: scopes,
-});
-return `https://accounts.spotify.com/authorize?${params.toString()}`;
+  const scopes = 'playlist-read-private';
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    scope: scopes,
+  });
+  return `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
 async function getAccessToken(code) {
-const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-const params = querystring.stringify({
-code,
-redirect\_uri: redirectUri,
-grant\_type: 'authorization\_code',
-});
+  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const params = querystring.stringify({
+    code,
+    redirect_uri: redirectUri,
+    grant_type: 'authorization_code',
+  });
 
-const response = await axios.post('[https://accounts.spotify.com/api/token](https://accounts.spotify.com/api/token)', params, {
-headers: {
-Authorization: `Basic ${authHeader}`,
-'Content-Type': 'application/x-www-form-urlencoded',
-},
-});
-if (response.status === 200) {
-return {
-access\_token: response.data.access\_token,
-refresh\_token: response.data.refresh\_token,
-expires\_in: response.data.expires\_in,
-};
-} else {
-throw new Error('Errore ottenendo token di accesso');
-}
+  const response = await axios.post('https://accounts.spotify.com/api/token', params, {
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+  if (response.status === 200) {
+    return {
+      access_token: response.data.access_token,
+      refresh_token: response.data.refresh_token,
+      expires_in: response.data.expires_in,
+    };
+  } else {
+    throw new Error('Errore ottenendo token di accesso');
+  }
 }
 
 async function refreshAccessToken(refreshToken) {
-const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-const params = querystring.stringify({
-grant\_type: 'refresh\_token',
-refresh\_token: refreshToken,
-});
+  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const params = querystring.stringify({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  });
 
-const response = await axios.post('[https://accounts.spotify.com/api/token](https://accounts.spotify.com/api/token)', params, {
-headers: {
-Authorization: `Basic ${authHeader}`,
-'Content-Type': 'application/x-www-form-urlencoded',
-},
-});
-if (response.status === 200) {
-return {
-access\_token: response.data.access\_token,
-expires\_in: response.data.expires\_in,
-};
-} else {
-throw new Error('Errore rinfrescando token');
-}
+  const response = await axios.post('https://accounts.spotify.com/api/token', params, {
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+  if (response.status === 200) {
+    return {
+      access_token: response.data.access_token,
+      expires_in: response.data.expires_in,
+    };
+  } else {
+    throw new Error('Errore rinfrescando token');
+  }
 }
 
 // Middleware: proteggi routes tranne start/login/callback
 function checkAccessToken(req, res, next) {
-const publicPaths = \['/start', '/login', '/callback'];
-if (publicPaths.includes(req.path)) return next();
-if (!req.session.accessToken) {
-return res.redirect('/start');
-}
-next();
+  const publicPaths = ['/start', '/login', '/callback'];
+  if (publicPaths.includes(req.path)) return next();
+  if (!req.session.accessToken) {
+    return res.redirect('/start');
+  }
+  next();
 }
 
 // Pagina iniziale login
 app.get('/start', (req, res) => {
-res.send(`     <html>       <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>       <body>         <div class="container">           <h1>Benvenuto</h1>           <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>         </div>       </body>     </html>
+  res.send(`
+    <html>
+      <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>
+      <body>
+        <div class="container">
+          <h1>Benvenuto</h1>
+          <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
+        </div>
+      </body>
+    </html>
   `);
 });
 
 // Login: redirect a Spotify
 app.get("/login", (req, res) => {
-const params = new URLSearchParams({
-response\_type: "code",
-client\_id: CLIENT\_ID,
-scope: SCOPES,
-redirect\_uri: REDIRECT\_URI,
-});
-res.redirect("[https://accounts.spotify.com/authorize](https://accounts.spotify.com/authorize)?" + params.toString());
+  const scopes = 'playlist-read-private'; // o qualsiasi altro scope
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    scope: scopes,
+    redirect_uri: redirectUri,
+  });
+  res.redirect("https://accounts.spotify.com/authorize?" + params.toString());
 });
 
 // Callback OAuth Spotify
