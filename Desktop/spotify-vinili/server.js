@@ -141,6 +141,10 @@ app.get('/start', (req, res) => {
       <body>
         <div class="container">
           <h1>Benvenuto</h1>
+          <p>Privacy Policy</p>
+          <p>Questa applicazione utilizza l'accesso Spotify per mostrare all'utente le proprie playlist e verificare quali tracce di un album sono incluse.</p>
+          <p>Non raccogliamo, memorizziamo o condividiamo alcun dato personale. Tutte le informazioni sono usate solo temporaneamente durante la sessione attiva dell'utente.</p>
+          <p>L'accesso ai dati avviene tramite le API ufficiali di Spotify e secondo le loro policy.</p>
           <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
         </div>
       </body>
