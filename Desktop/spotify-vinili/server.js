@@ -39,22 +39,6 @@ app.use(session({
   cookie: { maxAge: 3600000, sameSite: 'lax' }
 }));
 
-// Helpers
-function handleError(res, message, status = 500) {
-  res.status(status).send(`
-    <html>
-      <head><title>Errore</title><link rel="stylesheet" href="/styles.css"></head>
-      <body>
-        <div class="container">
-          <h2>❌ Errore</h2>
-          <p>${escapeHtml(message)}</p>
-          <a href="/" class="btn btn-secondary">Torna alla home</a>
-        </div>
-      </body>
-    </html>
-  `);
-}
-
 function getSpotifyAuthUrl() {
   const scopes = 'playlist-read-private';
   const params = new URLSearchParams({
