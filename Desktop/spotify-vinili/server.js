@@ -55,7 +55,7 @@ function handleError(res, message, status = 500) {
         <div class="container">
           <h2>❌ Errore</h2>
           <p>${escapedMessage}</p>
-          <a href="/" class="btn btn-secondary">Torna alla home</a>
+          <a href="/start" class="btn btn-secondary">Torna alla home</a>
         </div>
       </body>
     </html>
