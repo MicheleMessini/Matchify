@@ -248,14 +248,18 @@ app.get('/playlist/:id', async (req, res) => {
   const playlistId = req.params.id;
   const view = req.query.view || 'album'; // 'album' o 'artist'
 
+  if (!accessToken) {
+    return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
+  }
+
   try {
-    // Info playlist
+    // Recupera info playlist
     const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const playlist = playlistResponse.data;
 
-    // Tracce playlist (paginazione manuale)
+    // Recupera tutte le tracce (paginazione manuale)
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
     while (nextUrl) {
@@ -271,14 +275,14 @@ app.get('/playlist/:id', async (req, res) => {
     let contentHtml = '';
 
     if (view === 'artist') {
-      // Raggruppa per artisti
+      // Mappa per artisti con contatore tracce
       const artistsMap = new Map();
 
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.artists) continue;
         for (const artist of track.artists) {
-          if (!artist || !artist.id) continue;  // evita artisti senza id
+          if (!artist || !artist.id) continue;
           if (!artistsMap.has(artist.id)) {
             artistsMap.set(artist.id, {
               id: artist.id,
@@ -290,34 +294,39 @@ app.get('/playlist/:id', async (req, res) => {
         }
       }
 
-      // Ottieni gli ID degli artisti unici
-      const artistIds = Array.from(artistsMap.keys());
+      // Ottieni IDs unici e filtra eventuali falsy
+      const artistIds = Array.from(artistsMap.keys()).filter(id => !!id);
       console.log(`Numero artisti unici trovati: ${artistIds.length}`);
 
-      // Spotify consente max 50 artisti per richiesta, quindi spezzetta se serve
+      // Chunks di max 50 artisti per chiamata
       const chunkSize = 50;
       const artistDetails = [];
 
       for (let i = 0; i < artistIds.length; i += chunkSize) {
         const chunk = artistIds.slice(i, i + chunkSize);
-        console.log('Chiamata a Spotify per artisti con IDs:', chunk);
-        const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        if (response.data && Array.isArray(response.data.artists)) {
-          artistDetails.push(...response.data.artists);
-        } else {
-          console.warn('Nessun artista trovato per chunk:', chunk);
+        try {
+          console.log('Chiamata a Spotify per artisti con IDs:', chunk);
+          const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          if (response.data && Array.isArray(response.data.artists)) {
+            artistDetails.push(...response.data.artists);
+          } else {
+            console.warn('Nessun artista trovato per chunk:', chunk);
+          }
+        } catch (err) {
+          console.error('Errore nella chiamata a Spotify artisti per chunk:', chunk, err.response?.data || err.message);
+          // Qui puoi scegliere se continuare o fallire, io continuo
         }
       }
 
-      // Mappa dettagli immagine per artista
+      // Mappa immagini artista
       const artistImagesMap = new Map();
       for (const artist of artistDetails) {
         artistImagesMap.set(artist.id, artist.images[0]?.url || null);
       }
 
-      // Prepara array artisti con immagini
+      // Prepara array artisti ordinato per trackCount decrescente
       const artists = artistIds.map(id => ({
         id,
         name: artistsMap.get(id).name,
@@ -325,7 +334,6 @@ app.get('/playlist/:id', async (req, res) => {
         image: artistImagesMap.get(id)
       })).sort((a, b) => b.trackCount - a.trackCount);
 
-      // URL immagine placeholder se mancano immagini artista
       const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
 
       contentHtml = `
@@ -346,12 +354,12 @@ app.get('/playlist/:id', async (req, res) => {
       `;
 
     } else {
-      // Raggruppa per album
+      // Visualizza album come prima (non modificato)
       const albumsMap = new Map();
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.album) continue;
-        if (track.album.album_type !== 'album') continue; // Esclude singoli, podcast ecc.
+        if (track.album.album_type !== 'album') continue;
         const albumId = track.album.id;
         if (!albumsMap.has(albumId)) {
           albumsMap.set(albumId, {
