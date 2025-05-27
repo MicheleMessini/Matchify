@@ -272,7 +272,7 @@ app.get('/playlist/:id', async (req, res) => {
     if (view === 'artist') {
       // Raggruppa per artisti
       const artistsMap = new Map();
-
+      
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.artists) continue;
@@ -287,15 +287,46 @@ app.get('/playlist/:id', async (req, res) => {
           artistsMap.get(artist.id).trackCount++;
         }
       }
-
-      const artists = Array.from(artistsMap.values()).sort((a, b) => b.trackCount - a.trackCount);
-
-      contentHtml = `
+      
+      // Ottieni gli ID degli artisti unici
+      const artistIds = Array.from(artistsMap.keys());
+      
+      // Spotify consente max 50 artisti per richiesta, quindi spezzetta se serve
+      const chunkSize = 50;
+      const artistDetails = [];
+      
+      for (let i = 0; i < artistIds.length; i += chunkSize) {
+        const chunk = artistIds.slice(i, i + chunkSize);
+        const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        artistDetails.push(...response.data.artists);
+      }
+      
+      // Mappa dettagli immagine per artista
+      const artistImagesMap = new Map();
+      for (const artist of artistDetails) {
+        artistImagesMap.set(artist.id, artist.images[0]?.url || null);
+      }
+      
+      // Prepara array artisti con immagini
+      const artists = artistIds.map(id => ({
+        id,
+        name: artistsMap.get(id).name,
+        trackCount: artistsMap.get(id).trackCount,
+        image: artistImagesMap.get(id)
+      })).sort((a, b) => b.trackCount - a.trackCount);
+      
+      // URL immagine placeholder se mancano immagini artista
+      const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
+      
+      const contentHtml = `
         <h2>Artisti presenti nella playlist</h2>
         <div class="row">
           ${artists.map(artist => `
             <div class="col-md-4">
               <div class="card">
+                <img src="${escapeHtml(artist.image || placeholderImg)}" alt="Foto di ${escapeHtml(artist.name)}" class="card-img-top" />
                 <div class="card-body">
                   <h5 class="card-title">${escapeHtml(artist.name)}</h5>
                   <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
