@@ -250,13 +250,13 @@ app.get('/playlist/:id', async (req, res) => {
   const view = req.query.view || 'album'; // 'album' o 'artist'
 
   try {
-    // Info playlist
+    // Recupera info playlist
     const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const playlist = playlistResponse.data;
 
-    // Tracce playlist (paginazione manuale)
+    // Recupera tutte le tracce della playlist (paginazione manuale)
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
     while (nextUrl) {
@@ -270,9 +270,8 @@ app.get('/playlist/:id', async (req, res) => {
     let contentHtml = '';
 
     if (view === 'artist') {
-      // Raggruppa per artisti
+      // Raggruppa tracce per artisti e conta quante tracce ha ogni artista nella playlist
       const artistsMap = new Map();
-      
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.artists) continue;
@@ -287,14 +286,14 @@ app.get('/playlist/:id', async (req, res) => {
           artistsMap.get(artist.id).trackCount++;
         }
       }
-      
-      // Ottieni gli ID degli artisti unici
+
+      // Ottieni ID artisti unici
       const artistIds = Array.from(artistsMap.keys());
-      
-      // Spotify consente max 50 artisti per richiesta, quindi spezzetta se serve
+
+      // Spotify limita a 50 ID per richiesta, quindi chunk di 50
       const chunkSize = 50;
       const artistDetails = [];
-      
+
       for (let i = 0; i < artistIds.length; i += chunkSize) {
         const chunk = artistIds.slice(i, i + chunkSize);
         const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
@@ -302,30 +301,30 @@ app.get('/playlist/:id', async (req, res) => {
         });
         artistDetails.push(...response.data.artists);
       }
-      
-      // Mappa dettagli immagine per artista
+
+      // Mappa immagini per artista (prendi la prima immagine o null)
       const artistImagesMap = new Map();
       for (const artist of artistDetails) {
         artistImagesMap.set(artist.id, artist.images[0]?.url || null);
       }
-      
-      // Prepara array artisti con immagini
+
+      // Prepara array artisti con immagini, nome e conteggio tracce
       const artists = artistIds.map(id => ({
         id,
         name: artistsMap.get(id).name,
         trackCount: artistsMap.get(id).trackCount,
         image: artistImagesMap.get(id)
       })).sort((a, b) => b.trackCount - a.trackCount);
-      
-      // URL immagine placeholder se mancano immagini artista
+
+      // Immagine placeholder se manca immagine
       const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
-      
-      const contentHtml = `
+
+      contentHtml = `
         <h2>Artisti presenti nella playlist</h2>
         <div class="row">
           ${artists.map(artist => `
-            <div class="col-md-4">
-              <div class="card">
+            <div class="col-md-4 mb-4">
+              <div class="card h-100">
                 <img src="${escapeHtml(artist.image || placeholderImg)}" alt="Foto di ${escapeHtml(artist.name)}" class="card-img-top" />
                 <div class="card-body">
                   <h5 class="card-title">${escapeHtml(artist.name)}</h5>
@@ -336,13 +335,14 @@ app.get('/playlist/:id', async (req, res) => {
           `).join('')}
         </div>
       `;
+
     } else {
-      // Raggruppa per album
+      // Vista album: raggruppa tracce per album e calcola quante tracce dell'album sono nella playlist
       const albumsMap = new Map();
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.album) continue;
-        if (track.album.album_type !== 'album') continue; // Esclude singoli, podcast ecc.
+        if (track.album.album_type !== 'album') continue; // esclude singoli, podcast, ecc.
         const albumId = track.album.id;
         if (!albumsMap.has(albumId)) {
           albumsMap.set(albumId, {
@@ -378,8 +378,8 @@ app.get('/playlist/:id', async (req, res) => {
         <h2>Album presenti nella playlist</h2>
         <div class="row">
           ${paginatedAlbums.map(album => `
-            <div class="col-md-4">
-              <div class="card">
+            <div class="col-md-4 mb-4">
+              <div class="card h-100">
                 <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
                   <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img-top" />
                   <div class="card-body">
@@ -395,14 +395,14 @@ app.get('/playlist/:id', async (req, res) => {
             </div>
           `).join('')}
         </div>
-        <div class="pagination">
-          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}&view=album" class="btn btn-primary">Precedente</a>` : ''}
+        <div class="pagination text-center">
+          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}&view=album" class="btn btn-primary me-2">Precedente</a>` : ''}
           ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page + 1}&view=album" class="btn btn-primary">Successivo</a>` : ''}
         </div>
       `;
     }
 
-    // HTML finale
+    // Costruzione HTML finale pagina
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -410,6 +410,19 @@ app.get('/playlist/:id', async (req, res) => {
         <meta charset="UTF-8" />
         <title>Dettaglio Playlist - ${escapeHtml(playlist.name)}</title>
         <link rel="stylesheet" href="/styles.css" />
+        <style>
+          /* Piccole migliorie CSS */
+          .card-img-top {
+            object-fit: cover;
+            height: 200px;
+          }
+          .pagination {
+            margin-top: 20px;
+          }
+          .btn {
+            cursor: pointer;
+          }
+        </style>
       </head>
       <body>
         <div class="container">
@@ -431,6 +444,7 @@ app.get('/playlist/:id', async (req, res) => {
     `;
 
     res.send(html);
+
   } catch (err) {
     console.error('Errore nel dettaglio playlist:', err.message);
     handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più tardi.');
