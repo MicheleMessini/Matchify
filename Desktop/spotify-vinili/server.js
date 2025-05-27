@@ -247,6 +247,7 @@ app.get('/', async (req, res) => {
 app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const playlistId = req.params.id;
+  const view = req.query.view || 'album'; // 'album' o 'artist'
 
   try {
     // Info playlist
@@ -255,7 +256,7 @@ app.get('/playlist/:id', async (req, res) => {
     });
     const playlist = playlistResponse.data;
 
-    // Tracce playlist
+    // Tracce playlist (paginazione manuale)
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
     while (nextUrl) {
@@ -266,45 +267,111 @@ app.get('/playlist/:id', async (req, res) => {
       nextUrl = response.data.next;
     }
 
-    // Raggruppa tracce per album
-    const albumsMap = new Map();
-    for (const item of tracks) {
-      const track = item.track;
-      if (!track || !track.album) continue;
-      if (track.album.album_type !== 'album') continue;  // esclude singoli, podcast ecc.
-      const albumId = track.album.id;
-      if (!albumsMap.has(albumId)) {
-        albumsMap.set(albumId, {
-          album: track.album,
-          tracksInPlaylist: new Set(),
-          totalTracks: track.album.total_tracks || 0
-        });
+    let contentHtml = '';
+
+    if (view === 'artist') {
+      // Raggruppa per artisti
+      const artistsMap = new Map();
+
+      for (const item of tracks) {
+        const track = item.track;
+        if (!track || !track.artists) continue;
+        for (const artist of track.artists) {
+          if (!artistsMap.has(artist.id)) {
+            artistsMap.set(artist.id, {
+              id: artist.id,
+              name: artist.name,
+              trackCount: 0
+            });
+          }
+          artistsMap.get(artist.id).trackCount++;
+        }
       }
-      albumsMap.get(albumId).tracksInPlaylist.add(track.id);
+
+      const artists = Array.from(artistsMap.values()).sort((a, b) => b.trackCount - a.trackCount);
+
+      contentHtml = `
+        <h2>Artisti presenti nella playlist</h2>
+        <div class="row">
+          ${artists.map(artist => `
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
+                  <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      // Raggruppa per album
+      const albumsMap = new Map();
+      for (const item of tracks) {
+        const track = item.track;
+        if (!track || !track.album) continue;
+        if (track.album.album_type !== 'album') continue; // Esclude singoli, podcast ecc.
+        const albumId = track.album.id;
+        if (!albumsMap.has(albumId)) {
+          albumsMap.set(albumId, {
+            album: track.album,
+            tracksInPlaylist: new Set(),
+            totalTracks: track.album.total_tracks || 0
+          });
+        }
+        albumsMap.get(albumId).tracksInPlaylist.add(track.id);
+      }
+
+      const albums = Array.from(albumsMap.values()).map(a => {
+        const perc = a.totalTracks === 0 ? 0 : Math.round((a.tracksInPlaylist.size / a.totalTracks) * 100);
+        return {
+          id: a.album.id,
+          name: a.album.name,
+          artist: a.album.artists.map(ar => ar.name).join(', '),
+          image: a.album.images[0]?.url || '',
+          tracksPresent: a.tracksInPlaylist.size,
+          totalTracks: a.totalTracks,
+          percentuale: perc
+        };
+      });
+
+      albums.sort((a, b) => b.percentuale - a.percentuale);
+
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const perPage = 15;
+      const totalPages = Math.ceil(albums.length / perPage);
+      const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
+
+      contentHtml = `
+        <h2>Album presenti nella playlist</h2>
+        <div class="row">
+          ${paginatedAlbums.map(album => `
+            <div class="col-md-4">
+              <div class="card">
+                <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
+                  <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img-top" />
+                  <div class="card-body">
+                    <h5 class="card-title">${escapeHtml(album.name)}</h5>
+                    <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
+                    <p class="card-text">
+                      Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} 
+                      <strong>(${album.percentuale}%)</strong>
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="pagination">
+          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}&view=album" class="btn btn-primary">Precedente</a>` : ''}
+          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page + 1}&view=album" class="btn btn-primary">Successivo</a>` : ''}
+        </div>
+      `;
     }
 
-    const albums = Array.from(albumsMap.values()).map(a => {
-      const perc = a.totalTracks === 0 ? 0 : Math.round((a.tracksInPlaylist.size / a.totalTracks) * 100);
-      return {
-        id: a.album.id,
-        name: a.album.name,
-        artist: a.album.artists.map(ar => ar.name).join(', '),
-        image: a.album.images[0]?.url || '',
-        tracksPresent: a.tracksInPlaylist.size,
-        totalTracks: a.totalTracks,
-        percentuale: perc
-      };
-    });
-
-    // Ordina per percentuale tracce presenti
-    albums.sort((a, b) => b.percentuale - a.percentuale);
-
-    const page = Math.max(1, parseInt(req.query.page) || 1); // Fix: sempre >= 1
-    const perPage = 15;
-    const totalPages = Math.ceil(albums.length / perPage);
-    const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
-
-    // HTML
+    // HTML finale
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -318,30 +385,14 @@ app.get('/playlist/:id', async (req, res) => {
           <h1>Playlist: ${escapeHtml(playlist.name)}</h1>
           <p style="text-align:center;">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
           <p style="text-align:center;">Numero tracce: ${playlist.tracks.total}</p>
-          <h2>Album presenti nella playlist</h2>
-          <div class="row">
-            ${paginatedAlbums.map(album => `
-              <div class="col-md-4">
-                <div class="card">
-                  <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
-                    <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img-top" />
-                    <div class="card-body">
-                      <h5 class="card-title">${escapeHtml(album.name)}</h5>
-                      <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
-                      <p class="card-text">
-                        Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} 
-                        <strong>(${album.percentuale}%)</strong>
-                      </p>
-                    </div>
-                  </a>
-                </div>
-              </div>
-            `).join('')}
+
+          <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Album</a>
+            <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Artisti</a>
           </div>
-          <div class="pagination">
-            ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
-            ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
-          </div>
+
+          ${contentHtml}
+
           <p><a href="/" class="btn btn-secondary">Torna alle playlist</a></p>
         </div>
       </body>
