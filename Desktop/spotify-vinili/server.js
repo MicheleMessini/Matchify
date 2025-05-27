@@ -243,7 +243,6 @@ app.get('/', async (req, res) => {
   }
 });
 
-// Dettaglio playlist
 app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const playlistId = req.params.id;
@@ -267,16 +266,19 @@ app.get('/playlist/:id', async (req, res) => {
       nextUrl = response.data.next;
     }
 
+    console.log(`Playlist "${playlist.name}" caricata con ${tracks.length} tracce.`);
+
     let contentHtml = '';
 
     if (view === 'artist') {
       // Raggruppa per artisti
       const artistsMap = new Map();
-      
+
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.artists) continue;
         for (const artist of track.artists) {
+          if (!artist || !artist.id) continue;  // evita artisti senza id
           if (!artistsMap.has(artist.id)) {
             artistsMap.set(artist.id, {
               id: artist.id,
@@ -287,28 +289,34 @@ app.get('/playlist/:id', async (req, res) => {
           artistsMap.get(artist.id).trackCount++;
         }
       }
-      
+
       // Ottieni gli ID degli artisti unici
       const artistIds = Array.from(artistsMap.keys());
-      
+      console.log(`Numero artisti unici trovati: ${artistIds.length}`);
+
       // Spotify consente max 50 artisti per richiesta, quindi spezzetta se serve
       const chunkSize = 50;
       const artistDetails = [];
-      
+
       for (let i = 0; i < artistIds.length; i += chunkSize) {
         const chunk = artistIds.slice(i, i + chunkSize);
+        console.log('Chiamata a Spotify per artisti con IDs:', chunk);
         const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
-        artistDetails.push(...response.data.artists);
+        if (response.data && Array.isArray(response.data.artists)) {
+          artistDetails.push(...response.data.artists);
+        } else {
+          console.warn('Nessun artista trovato per chunk:', chunk);
+        }
       }
-      
+
       // Mappa dettagli immagine per artista
       const artistImagesMap = new Map();
       for (const artist of artistDetails) {
         artistImagesMap.set(artist.id, artist.images[0]?.url || null);
       }
-      
+
       // Prepara array artisti con immagini
       const artists = artistIds.map(id => ({
         id,
@@ -316,11 +324,11 @@ app.get('/playlist/:id', async (req, res) => {
         trackCount: artistsMap.get(id).trackCount,
         image: artistImagesMap.get(id)
       })).sort((a, b) => b.trackCount - a.trackCount);
-      
+
       // URL immagine placeholder se mancano immagini artista
       const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
-      
-      const contentHtml = `
+
+      contentHtml = `
         <h2>Artisti presenti nella playlist</h2>
         <div class="row">
           ${artists.map(artist => `
@@ -336,6 +344,7 @@ app.get('/playlist/:id', async (req, res) => {
           `).join('')}
         </div>
       `;
+
     } else {
       // Raggruppa per album
       const albumsMap = new Map();
@@ -431,8 +440,9 @@ app.get('/playlist/:id', async (req, res) => {
     `;
 
     res.send(html);
+
   } catch (err) {
-    console.error('Errore nel dettaglio playlist:', err.message);
+    console.error('Errore nel dettaglio playlist:', err.response?.data || err.message || err);
     handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più tardi.');
   }
 });
