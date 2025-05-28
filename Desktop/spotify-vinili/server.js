@@ -245,134 +245,117 @@ app.get('/', async (req, res) => {
 
 app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
-const playlistId = req.params.id;
-const view = req.query.view || 'album';
+  const playlistId = req.params.id;
+  const view = req.query.view || 'album';
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const perPage = 15;
 
-if (!accessToken) {
-  return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
-}
-
-try {
-  // Recupera informazioni della playlist
-  const playlistResponse = await axios.get(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const playlist = playlistResponse.data;
-
-  // Carica tutte le tracce (paginazione)
-  let tracks = [];
-  let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
-  while (nextUrl) {
-    const response = await axios.get(nextUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    tracks.push(...response.data.items);
-    nextUrl = response.data.next;
+  if (!accessToken) {
+    return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
   }
 
-  console.log(`Playlist "${playlist.name}" caricata con ${tracks.length} tracce.`);
-
-  let contentHtml = '';
-
-  if (view === 'artist') {
-    const artistsMap = new Map();
-
-    // Mappatura artisti
-    for (const item of tracks) {
-      const track = item?.track;
-      if (!track || !Array.isArray(track.artists)) continue;
-
-      for (const artist of track.artists) {
-        if (!artist?.id) continue;
-        if (!artistsMap.has(artist.id)) {
-          artistsMap.set(artist.id, {
-            id: artist.id,
-            name: artist.name || 'Sconosciuto',
-            trackCount: 0
-          });
-        }
-        artistsMap.get(artist.id).trackCount++;
-      }
-    }
-
-    const artistIds = Array.from(artistsMap.keys()).filter(Boolean);
-    console.log(`Numero artisti unici trovati: ${artistIds.length}`);
-
-    const chunkSize = 50;
-    const artistDetails = [];
-
-    for (let i = 0; i < artistIds.length; i += chunkSize) {
-      const chunk = artistIds.slice(i, i + chunkSize);
-      try {
-        const response = await axios.get(
-          `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-
-        if (Array.isArray(response.data?.artists)) {
-          artistDetails.push(...response.data.artists);
-        } else {
-          console.warn('Risposta non valida per artisti:', chunk);
-        }
-      } catch (err) {
-        console.error('Errore durante fetch artisti:', chunk, err.response?.data || err.message);
-      }
-    }
-
-    // Mappa immagini artista
-    const artistImages = new Map();
-    for (const artist of artistDetails) {
-      artistImages.set(artist.id, artist.images?.[0]?.url || null);
-    }
-
-    const artists = artistIds.map(id => ({
-      id,
-      name: artistsMap.get(id).name,
-      trackCount: artistsMap.get(id).trackCount,
-      image: artistImages.get(id)
-    })).sort((a, b) => b.trackCount - a.trackCount);
-
-    const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
-
-    contentHtml = `
-      <h2 class="mb-4">Artisti presenti nella playlist "${escapeHtml(playlist.name)}"</h2>
-      <div class="row">
-        ${artists.map(artist => `
-          <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-              <img src="${escapeHtml(artist.image || placeholderImg)}" class="card-img-top" alt="Immagine di ${escapeHtml(artist.name)}">
-              <div class="card-body">
-                <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  // Mostra il contenuto generato
-  res.send(`
-    <html>
-      <head>
-        <title>Artisti playlist</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-      </head>
-      <body class="container py-4">
-        ${contentHtml}
-      </body>
-    </html>
+  // Funzione per generare blocco HTML per errore generico
+  const renderErrorPage = (message) => res.send(`
+    <html><head><title>Errore</title></head>
+    <body><h1>Errore</h1><p>${escapeHtml(message)}</p></body></html>
   `);
 
+  try {
+    // 1. Recupero playlist
+    const playlistRes = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const playlist = playlistRes.data;
+
+    // 2. Caricamento completo delle tracce (con paginazione)
+    let tracks = [];
+    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+    while (nextUrl) {
+      const trackRes = await axios.get(nextUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      tracks.push(...trackRes.data.items);
+      nextUrl = trackRes.data.next;
+    }
+
+    console.log(`Caricata playlist "${playlist.name}" con ${tracks.length} tracce.`);
+
+    let contentHtml = '';
+
+    // === VISTA ARTISTI ===
+    if (view === 'artist') {
+      const artistsMap = new Map();
+
+      for (const item of tracks) {
+        const track = item?.track;
+        if (!track || !Array.isArray(track.artists)) continue;
+        for (const artist of track.artists) {
+          if (!artist?.id) continue;
+          if (!artistsMap.has(artist.id)) {
+            artistsMap.set(artist.id, {
+              id: artist.id,
+              name: artist.name || 'Sconosciuto',
+              trackCount: 0
+            });
+          }
+          artistsMap.get(artist.id).trackCount++;
+        }
+      }
+
+      const artistIds = Array.from(artistsMap.keys());
+      const artistDetails = [];
+      const chunkSize = 50;
+
+      for (let i = 0; i < artistIds.length; i += chunkSize) {
+        const chunk = artistIds.slice(i, i + chunkSize);
+        try {
+          const artistRes = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          artistDetails.push(...artistRes.data.artists);
+        } catch (err) {
+          console.warn('Errore fetch artisti:', chunk, err.response?.data || err.message);
+        }
+      }
+
+      const artistImages = new Map();
+      for (const artist of artistDetails) {
+        artistImages.set(artist.id, artist.images?.[0]?.url || null);
+      }
+
+      const artists = artistIds.map(id => ({
+        id,
+        name: artistsMap.get(id).name,
+        trackCount: artistsMap.get(id).trackCount,
+        image: artistImages.get(id) || 'https://via.placeholder.com/300?text=No+Image'
+      })).sort((a, b) => b.trackCount - a.trackCount);
+
+      contentHtml = `
+        <h2 class="mb-4">Artisti presenti nella playlist "${escapeHtml(playlist.name)}"</h2>
+        <div class="row">
+          ${artists.map(artist => `
+            <div class="col-md-4 mb-4">
+              <div class="card h-100 shadow-sm border-0">
+                <img src="${escapeHtml(artist.image)}" class="card-img-top" alt="Immagine di ${escapeHtml(artist.name)}">
+                <div class="card-body">
+                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
+                  <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
     } else {
-      // Visualizza album come prima (non modificato)
+      // === VISTA ALBUM ===
       const albumsMap = new Map();
+
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.album) continue;
         if (track.album.album_type !== 'album') continue;
+
         const albumId = track.album.id;
         if (!albumsMap.has(albumId)) {
           albumsMap.set(albumId, {
@@ -390,7 +373,7 @@ try {
           id: a.album.id,
           name: a.album.name,
           artist: a.album.artists.map(ar => ar.name).join(', '),
-          image: a.album.images[0]?.url || '',
+          image: a.album.images[0]?.url || 'https://via.placeholder.com/300?text=No+Image',
           tracksPresent: a.tracksInPlaylist.size,
           totalTracks: a.totalTracks,
           percentuale: perc
@@ -398,20 +381,17 @@ try {
       });
 
       albums.sort((a, b) => b.percentuale - a.percentuale);
-
-      const page = Math.max(1, parseInt(req.query.page) || 1);
-      const perPage = 15;
       const totalPages = Math.ceil(albums.length / perPage);
-      const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
+      const paginated = albums.slice((page - 1) * perPage, page * perPage);
 
       contentHtml = `
         <h2>Album presenti nella playlist</h2>
         <div class="row">
-          ${paginatedAlbums.map(album => `
-            <div class="col-md-4">
-              <div class="card">
+          ${paginated.map(album => `
+            <div class="col-md-4 mb-4">
+              <div class="card h-100">
                 <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
-                  <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img-top" />
+                  <img src="${escapeHtml(album.image)}" class="card-img-top" alt="${escapeHtml(album.name)}">
                   <div class="card-body">
                     <h5 class="card-title">${escapeHtml(album.name)}</h5>
                     <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
@@ -425,36 +405,37 @@ try {
             </div>
           `).join('')}
         </div>
-        <div class="pagination">
-          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page - 1}&view=album" class="btn btn-primary">Precedente</a>` : ''}
-          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?page=${page + 1}&view=album" class="btn btn-primary">Successivo</a>` : ''}
+        <div class="d-flex justify-content-between my-4">
+          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">Precedente</a>` : '<div></div>'}
+          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
         </div>
       `;
     }
 
-    // HTML finale
+    // === HTML FINALE ===
     const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
         <meta charset="UTF-8" />
-        <title>Dettaglio Playlist - ${escapeHtml(playlist.name)}</title>
+        <title>Playlist: ${escapeHtml(playlist.name)}</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
         <link rel="stylesheet" href="/styles.css" />
       </head>
-      <body>
-        <div class="container">
-          <h1>Playlist: ${escapeHtml(playlist.name)}</h1>
-          <p style="text-align:center;">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
-          <p style="text-align:center;">Numero tracce: ${playlist.tracks.total}</p>
+      <body class="container py-4">
+        <h1>Playlist: ${escapeHtml(playlist.name)}</h1>
+        <p class="text-center">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
+        <p class="text-center">Numero tracce: ${playlist.tracks.total}</p>
 
-          <div style="text-align: center; margin-bottom: 20px;">
-            <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Album</a>
-            <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Artisti</a>
-          </div>
+        <div class="text-center mb-4">
+          <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Album</a>
+          <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Artisti</a>
+        </div>
 
-          ${contentHtml}
+        ${contentHtml}
 
-          <p><a href="/" class="btn btn-secondary">Torna alle playlist</a></p>
+        <div class="text-center mt-4">
+          <a href="/" class="btn btn-secondary">Torna alle playlist</a>
         </div>
       </body>
       </html>
@@ -463,8 +444,8 @@ try {
     res.send(html);
 
   } catch (err) {
-    console.error('Errore nel dettaglio playlist:', err.response?.data || err.message || err);
-    handleError(res, 'Impossibile recuperare i dettagli della playlist. Riprova più tardi.');
+    console.error('Errore nel dettaglio playlist:', err.response?.data || err.message);
+    return renderErrorPage('Errore nel recuperare i dettagli della playlist. Riprova più tardi.');
   }
 });
 
