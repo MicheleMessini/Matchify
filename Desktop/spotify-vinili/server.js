@@ -251,23 +251,35 @@ app.get('/playlist/:id', async (req, res) => {
   const perPage = 15;
 
   if (!accessToken) {
-    return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
+    return res.status(401).send('<h1>Errore</h1><p>Token di accesso mancante o scaduto. Effettua di nuovo il login.</p>');
   }
 
-  // Funzione per generare blocco HTML per errore generico
+  const escapeHtml = (unsafe) => unsafe.replace(/[&<"'>]/g, (c) => {
+    return { '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;', '>': '&gt;' }[c];
+  });
+
   const renderErrorPage = (message) => res.send(`
-    <html><head><title>Errore</title></head>
-    <body><h1>Errore</h1><p>${escapeHtml(message)}</p></body></html>
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+      <meta charset="UTF-8">
+      <title>Errore</title>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    </head>
+    <body class="container py-5">
+      <h1 class="text-danger">Errore</h1>
+      <p>${escapeHtml(message)}</p>
+      <a href="/" class="btn btn-primary mt-3">Torna alla home</a>
+    </body>
+    </html>
   `);
 
   try {
-    // 1. Recupero playlist
     const playlistRes = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const playlist = playlistRes.data;
 
-    // 2. Caricamento completo delle tracce (con paginazione)
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
     while (nextUrl) {
@@ -278,66 +290,61 @@ app.get('/playlist/:id', async (req, res) => {
       nextUrl = trackRes.data.next;
     }
 
-    console.log(`Caricata playlist "${playlist.name}" con ${tracks.length} tracce.`);
-
     let contentHtml = '';
 
-    // === VISTA ARTISTI ===
     if (view === 'artist') {
       const artistsMap = new Map();
 
       for (const item of tracks) {
-      const track = item?.track;
-      if (!track || !Array.isArray(track.artists)) continue;
-    
-      for (const artist of track.artists) {
-        if (!artist?.id) continue;
-        if (!artistsMap.has(artist.id)) {
-          artistsMap.set(artist.id, {
-            id: artist.id,
-            name: artist.name || 'Sconosciuto',
-            trackCount: 0
-          });
+        const track = item?.track;
+        if (!track || !Array.isArray(track.artists)) continue;
+        for (const artist of track.artists) {
+          if (!artist?.id) continue;
+          if (!artistsMap.has(artist.id)) {
+            artistsMap.set(artist.id, {
+              id: artist.id,
+              name: artist.name || 'Sconosciuto',
+              trackCount: 0
+            });
+          }
+          artistsMap.get(artist.id).trackCount++;
         }
-        artistsMap.get(artist.id).trackCount++;
       }
-    }
 
       const artistIds = Array.from(artistsMap.keys());
       const artistDetails = [];
       const chunkSize = 50;
-
       for (let i = 0; i < artistIds.length; i += chunkSize) {
         const chunk = artistIds.slice(i, i + chunkSize);
         try {
-          const artistRes = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
+          const resArtists = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
             headers: { Authorization: `Bearer ${accessToken}` }
           });
-          artistDetails.push(...artistRes.data.artists);
+          artistDetails.push(...resArtists.data.artists);
         } catch (err) {
-          console.warn('Errore fetch artisti:', chunk, err.response?.data || err.message);
+          console.warn('Errore fetch artisti:', chunk, err.message);
         }
       }
 
       const artistImages = new Map();
       for (const artist of artistDetails) {
-        artistImages.set(artist.id, artist.images?.[0]?.url || null);
+        artistImages.set(artist.id, artist.images?.[0]?.url || 'https://via.placeholder.com/300?text=No+Image');
       }
 
       const artists = artistIds.map(id => ({
         id,
         name: artistsMap.get(id).name,
         trackCount: artistsMap.get(id).trackCount,
-        image: artistImages.get(id) || 'https://via.placeholder.com/300?text=No+Image'
+        image: artistImages.get(id)
       })).sort((a, b) => b.trackCount - a.trackCount);
 
       contentHtml = `
-        <h2 class="mb-4">Artisti presenti nella playlist "${escapeHtml(playlist.name)}"</h2>
+        <h2 class="mb-4">Artisti nella playlist: ${escapeHtml(playlist.name)}</h2>
         <div class="row">
           ${artists.map(artist => `
             <div class="col-md-4 mb-4">
               <div class="card h-100 shadow-sm border-0">
-                <img src="${escapeHtml(artist.image)}" class="card-img-top" alt="Immagine di ${escapeHtml(artist.name)}">
+                <img src="${escapeHtml(artist.image)}" class="card-img-top" alt="${escapeHtml(artist.name)}">
                 <div class="card-body">
                   <h5 class="card-title">${escapeHtml(artist.name)}</h5>
                   <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
@@ -349,14 +356,12 @@ app.get('/playlist/:id', async (req, res) => {
       `;
 
     } else {
-      // === VISTA ALBUM ===
       const albumsMap = new Map();
 
       for (const item of tracks) {
         const track = item.track;
         if (!track || !track.album) continue;
         if (track.album.album_type !== 'album') continue;
-
         const albumId = track.album.id;
         if (!albumsMap.has(albumId)) {
           albumsMap.set(albumId, {
@@ -386,7 +391,7 @@ app.get('/playlist/:id', async (req, res) => {
       const paginated = albums.slice((page - 1) * perPage, page * perPage);
 
       contentHtml = `
-        <h2>Album presenti nella playlist</h2>
+        <h2 class="mb-4">Album nella playlist: ${escapeHtml(playlist.name)}</h2>
         <div class="row">
           ${paginated.map(album => `
             <div class="col-md-4 mb-4">
@@ -396,41 +401,37 @@ app.get('/playlist/:id', async (req, res) => {
                   <div class="card-body">
                     <h5 class="card-title">${escapeHtml(album.name)}</h5>
                     <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
-                    <p class="card-text">
-                      Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} 
-                      <strong>(${album.percentuale}%)</strong>
-                    </p>
+                    <p class="card-text">Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} <strong>(${album.percentuale}%)</strong></p>
                   </div>
                 </a>
               </div>
             </div>
           `).join('')}
         </div>
-        <div class="d-flex justify-content-between my-4">
-          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">Precedente</a>` : '<div></div>'}
-          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
+        <div class="d-flex justify-content-between mt-4">
+          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-outline-primary">Precedente</a>` : '<div></div>'}
+          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-outline-primary">Successivo</a>` : ''}
         </div>
       `;
     }
 
-    // === HTML FINALE ===
     const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <title>Playlist: ${escapeHtml(playlist.name)}</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-        <link rel="stylesheet" href="/styles.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="/styles.css">
       </head>
       <body class="container py-4">
-        <h1>Playlist: ${escapeHtml(playlist.name)}</h1>
+        <h1 class="text-center">${escapeHtml(playlist.name)}</h1>
         <p class="text-center">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
         <p class="text-center">Numero tracce: ${playlist.tracks.total}</p>
 
-        <div class="text-center mb-4">
-          <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Album</a>
-          <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Artisti</a>
+        <div class="text-center my-4">
+          <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">Vista Album</a>
+          <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">Vista Artisti</a>
         </div>
 
         ${contentHtml}
@@ -445,7 +446,7 @@ app.get('/playlist/:id', async (req, res) => {
     res.send(html);
 
   } catch (err) {
-    console.error('Errore nel dettaglio playlist:', err.response?.data || err.message);
+    console.error('Errore nel dettaglio playlist:', err.message);
     return renderErrorPage('Errore nel recuperare i dettagli della playlist. Riprova più tardi.');
   }
 });
