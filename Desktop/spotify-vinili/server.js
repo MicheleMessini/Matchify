@@ -8,7 +8,7 @@ const querystring = require('querystring');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Utility functions
+// Funzione per escape HTML (contro XSS)
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -19,41 +19,29 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function validateEnvVars() {
-  const required = ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'REDIRECT_URI'];
-  const missing = required.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    console.error(`⚠️  Missing required environment variables: ${missing.join(', ')}`);
-    console.error('Please configure these in your .env file');
-    process.exit(1);
-  }
-}
-
-// Validate environment variables
-validateEnvVars();
-
+// Variabili ambiente obbligatorie
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirectUri = process.env.REDIRECT_URI;
 
-// Middleware configuration
+if (!clientId || !clientSecret || !redirectUri) {
+  console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
+  process.exit(1);
+}
+
+// Configurazione middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
   resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    maxAge: 3600000, 
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  }
+  saveUninitialized: true,
+  cookie: { maxAge: 3600000, sameSite: 'lax' }
 }));
 
-// Error handling utility
 function handleError(res, message, status = 500) {
   const escapedMessage = escapeHtml(message);
+
   const html = `
     <!DOCTYPE html>
     <html lang="it">
@@ -72,9 +60,9 @@ function handleError(res, message, status = 500) {
       </body>
     </html>
   `;
+
   res.status(status).send(html);
 }
-
 // Spotify API utilities
 function getSpotifyAuthUrl() {
   const scopes = 'playlist-read-private';
