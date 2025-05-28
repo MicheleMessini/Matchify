@@ -153,10 +153,9 @@ app.get('/start', (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🎵 Spotify Playlist Analyzer</h1>
-          <p>Analizza le tue playlist Spotify per scoprire album completi e artisti preferiti!</p>
+          <h1>Spotify Playlist Analyzer</h1>
           <div style="text-align:center;">
-            <a href="/login" class="btn btn-primary">🔐 Accedi con Spotify</a>
+            <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
           </div>
         </div>
       </body>
@@ -234,7 +233,7 @@ app.get('/', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🎵 Le tue Playlist Spotify</h1>
+          <h1>Le tue Playlist Spotify</h1>
           <p class="text-center">Trovate ${playlists.length} playlist</p>
           
           <div class="row">
@@ -248,8 +247,8 @@ app.get('/', async (req, res) => {
                          onerror="this.src='/placeholder.png'">
                     <div class="card-body">
                       <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
-                      <p class="card-text">👤 ${escapeHtml(playlist.owner.display_name)}</p>
-                      <p class="card-text">🎵 ${playlist.tracks.total} tracce</p>
+                      <p class="card-text">${escapeHtml(playlist.owner.display_name)}</p>
+                      <p class="card-text">${playlist.tracks.total} tracce</p>
                     </div>
                   </a>
                 </div>
@@ -365,7 +364,7 @@ app.get('/playlist/:id', async (req, res) => {
         .sort((a, b) => b.trackCount - a.trackCount);
 
       contentHtml = `
-        <h2 class="mb-4">🎤 Artisti nella playlist</h2>
+        <h2 class="mb-4">Artisti nella playlist</h2>
         <div class="row">
           ${artists.map(artist => `
             <div class="col-md-4 mb-4">
@@ -376,7 +375,7 @@ app.get('/playlist/:id', async (req, res) => {
                      onerror="this.src='/placeholder.png'">
                 <div class="card-body">
                   <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                  <p class="card-text">🎵 ${artist.trackCount} brani</p>
+                  <p class="card-text">${artist.trackCount} brani</p>
                 </div>
               </div>
             </div>
@@ -420,7 +419,7 @@ app.get('/playlist/:id', async (req, res) => {
       const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
       contentHtml = `
-        <h2 class="mb-4">💿 Album nella playlist</h2>
+        <h2 class="mb-4">Album nella playlist</h2>
         <div class="row">
           ${paginatedAlbums.map(album => `
             <div class="col-md-4 mb-4">
@@ -432,9 +431,9 @@ app.get('/playlist/:id', async (req, res) => {
                        onerror="this.src='/placeholder.png'">
                   <div class="card-body">
                     <h5 class="card-title">${escapeHtml(album.name)}</h5>
-                    <p class="card-text">👤 ${escapeHtml(album.artist)}</p>
+                    <p class="card-text">${escapeHtml(album.artist)}</p>
                     <p class="card-text">
-                      🎵 ${album.tracksPresent}/${album.totalTracks} 
+                      ${album.tracksPresent}/${album.totalTracks} 
                       <strong>(${album.percentage}%)</strong>
                     </p>
                   </div>
@@ -465,18 +464,18 @@ app.get('/playlist/:id', async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🎵 ${escapeHtml(playlist.name)}</h1>
-          <p class="text-center">👤 ${escapeHtml(playlist.owner.display_name)}</p>
-          <p class="text-center">🎵 ${playlist.tracks.total} tracce</p>
+          <h1>${escapeHtml(playlist.name)}</h1>
+          <p class="text-center">${escapeHtml(playlist.owner.display_name)}</p>
+          <p class="text-center">${playlist.tracks.total} tracce</p>
 
           <div class="view-toggle">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
                class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               💿 Vista Album
+               Vista Album
             </a>
             <a href="/playlist/${escapeHtml(playlistId)}?view=artist" 
                class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               🎤 Vista Artisti
+               Vista Artisti
             </a>
           </div>
 
@@ -550,10 +549,10 @@ app.get('/album/:id', async (req, res) => {
                  class="album-cover"
                  onerror="this.src='/placeholder.png'">
             <div class="album-info">
-              <h1>💿 ${escapeHtml(album.name)}</h1>
-              <h2>👤 ${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h2>
-              <p>📅 ${album.release_date}</p>
-              <p>🎵 ${album.total_tracks} tracce</p>
+              <h1>${escapeHtml(album.name)}</h1>
+              <h2>${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h2>
+              <p>${album.release_date}</p>
+              <p>${album.total_tracks} tracce</p>
             </div>
           </div>
           
