@@ -148,12 +148,12 @@ app.get('/start', (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Benvenuto</title>
+        <title>Home</title>
         <link rel="stylesheet" href="/styles.css">
       </head>
       <body>
         <div class="container">
-          <h1>Spotify Playlist Analyzer</h1>
+          <h1>Benvenuto</h1>
           <div style="text-align:center;">
             <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
           </div>
