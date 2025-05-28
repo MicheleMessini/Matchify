@@ -63,6 +63,7 @@ function handleError(res, message, status = 500) {
 
   res.status(status).send(html);
 }
+
 // Spotify API utilities
 function getSpotifyAuthUrl() {
   const scopes = 'playlist-read-private';
@@ -502,20 +503,22 @@ app.get('/album/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const albumId = req.params.id;
   const playlistId = req.query.playlistId;
+  
   try {
     // Get album details
-    const albumResponse = await axios.get(https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}, {
-      headers: { Authorization: Bearer ${accessToken} },
+    const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
       timeout: 10000
     });
     const album = albumResponse.data;
+    
     // Get playlist tracks if playlistId provided
     let playlistTrackUris = [];
     if (playlistId) {
-      let nextUrl = https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50;
+      let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`;
       while (nextUrl) {
         const playlistResponse = await axios.get(nextUrl, {
-          headers: { Authorization: Bearer ${accessToken} },
+          headers: { Authorization: `Bearer ${accessToken}` },
           timeout: 10000
         });
         playlistTrackUris.push(
@@ -526,6 +529,7 @@ app.get('/album/:id', async (req, res) => {
         nextUrl = playlistResponse.data.next;
       }
     }
+    
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -554,12 +558,12 @@ app.get('/album/:id', async (req, res) => {
           <ol class="tracklist">
             ${album.tracks.items.map(track => {
               const isInPlaylist = playlistTrackUris.includes(track.uri);
-              return 
+              return `
                 <li class="track-item ${isInPlaylist ? 'in-playlist' : 'not-in-playlist'}">
                   <span class="track-name">${escapeHtml(track.name)}</span>
                   <span class="track-status">${isInPlaylist ? '✅' : '❌'}</span>
                 </li>
-              ;
+              `;
             }).join('')}
           </ol>
 
@@ -570,6 +574,7 @@ app.get('/album/:id', async (req, res) => {
       </body>
       </html>
     `;
+    
     res.send(html);
   } catch (err) {
     console.error('Error fetching album details:', err.message);
@@ -579,6 +584,12 @@ app.get('/album/:id', async (req, res) => {
     }
     handleError(res, 'Impossibile recuperare i dettagli dell\'album.');
   }
+});
+
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/start');
 });
 
 // 404 handler
