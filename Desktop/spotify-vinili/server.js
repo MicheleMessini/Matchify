@@ -8,7 +8,7 @@ const querystring = require('querystring');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Funzione per escape HTML (contro XSS)
+// Utility functions
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -19,29 +19,41 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Variabili ambiente obbligatorie
+function validateEnvVars() {
+  const required = ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'REDIRECT_URI'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.error(`⚠️  Missing required environment variables: ${missing.join(', ')}`);
+    console.error('Please configure these in your .env file');
+    process.exit(1);
+  }
+}
+
+// Validate environment variables
+validateEnvVars();
+
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirectUri = process.env.REDIRECT_URI;
 
-if (!clientId || !clientSecret || !redirectUri) {
-  console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
-  process.exit(1);
-}
-
-// Configurazione middleware
+// Middleware configuration
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
   resave: false,
-  saveUninitialized: true,
-  cookie: { maxAge: 3600000, sameSite: 'lax' }
+  saveUninitialized: false,
+  cookie: { 
+    maxAge: 3600000, 
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
 }));
 
+// Error handling utility
 function handleError(res, message, status = 500) {
   const escapedMessage = escapeHtml(message);
-
   const html = `
     <!DOCTYPE html>
     <html lang="it">
@@ -60,10 +72,10 @@ function handleError(res, message, status = 500) {
       </body>
     </html>
   `;
-
   res.status(status).send(html);
 }
 
+// Spotify API utilities
 function getSpotifyAuthUrl() {
   const scopes = 'playlist-read-private';
   const params = new URLSearchParams({
@@ -83,19 +95,22 @@ async function getAccessToken(code) {
     grant_type: 'authorization_code',
   });
 
-  const response = await axios.post('https://accounts.spotify.com/api/token', params, {
-    headers: {
-      Authorization: `Basic ${authHeader}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-  if (response.status === 200) {
+  try {
+    const response = await axios.post('https://accounts.spotify.com/api/token', params, {
+      headers: {
+        Authorization: `Basic ${authHeader}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      timeout: 10000
+    });
+    
     return {
       access_token: response.data.access_token,
       refresh_token: response.data.refresh_token,
       expires_in: response.data.expires_in,
     };
-  } else {
+  } catch (error) {
+    console.error('Token exchange error:', error.response?.data || error.message);
     throw new Error('Errore ottenendo token di accesso');
   }
 }
@@ -107,142 +122,181 @@ async function refreshAccessToken(refreshToken) {
     refresh_token: refreshToken,
   });
 
-  const response = await axios.post('https://accounts.spotify.com/api/token', params, {
-    headers: {
-      Authorization: `Basic ${authHeader}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-  if (response.status === 200) {
+  try {
+    const response = await axios.post('https://accounts.spotify.com/api/token', params, {
+      headers: {
+        Authorization: `Basic ${authHeader}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      timeout: 10000
+    });
+    
     return {
       access_token: response.data.access_token,
       expires_in: response.data.expires_in,
     };
-  } else {
+  } catch (error) {
+    console.error('Token refresh error:', error.response?.data || error.message);
     throw new Error('Errore rinfrescando token');
   }
 }
 
-// Middleware: proteggi routes tranne start/login/callback
-function checkAccessToken(req, res, next) {
+// Authentication middleware
+function requireAuth(req, res, next) {
   const publicPaths = ['/start', '/login', '/callback'];
   if (publicPaths.includes(req.path)) return next();
+  
   if (!req.session.accessToken) {
     return res.redirect('/start');
   }
   next();
 }
 
-// Pagina iniziale login
+// Routes
 app.get('/start', (req, res) => {
   res.send(`
-    <html>
-      <head><title>Login Spotify</title><link rel="stylesheet" href="/styles.css"></head>
+    <!DOCTYPE html>
+    <html lang="it">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Spotify Playlist Analyzer</title>
+        <link rel="stylesheet" href="/styles.css">
+      </head>
       <body>
         <div class="container">
-          <h1>Benvenuto</h1>
-          <p style="text-align:center;"><a href="/login" class="btn btn-primary">Accedi con Spotify</a></p>
+          <h1>🎵 Spotify Playlist Analyzer</h1>
+          <p>Analizza le tue playlist Spotify per scoprire album completi e artisti preferiti!</p>
+          <div style="text-align:center;">
+            <a href="/login" class="btn btn-primary">🔐 Accedi con Spotify</a>
+          </div>
         </div>
       </body>
     </html>
   `);
 });
 
-// Login: redirect a Spotify
-app.get("/login", (req, res) => {
-  const scopes = 'playlist-read-private'; // o qualsiasi altro scope
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: clientId,
-    scope: scopes,
-    redirect_uri: redirectUri,
-  });
-  res.redirect("https://accounts.spotify.com/authorize?" + params.toString());
+app.get('/login', (req, res) => {
+  const authUrl = getSpotifyAuthUrl();
+  res.redirect(authUrl);
 });
 
-// Callback OAuth Spotify
 app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) return handleError(res, 'Nessun codice fornito', 400);
+  const { code, error } = req.query;
+  
+  if (error) {
+    return handleError(res, `Errore di autorizzazione: ${error}`, 400);
+  }
+  
+  if (!code) {
+    return handleError(res, 'Nessun codice di autorizzazione fornito', 400);
+  }
 
   try {
     const tokens = await getAccessToken(code);
     req.session.accessToken = tokens.access_token;
     req.session.refreshToken = tokens.refresh_token;
+    req.session.tokenExpiry = Date.now() + (tokens.expires_in * 1000);
+    
     res.redirect('/');
   } catch (err) {
-    console.error('Errore token:', err);
-    handleError(res, 'Errore autenticazione Spotify');
+    console.error('OAuth callback error:', err);
+    handleError(res, 'Errore durante l\'autenticazione con Spotify');
   }
 });
 
-// Proteggi tutte le route successive
-app.use(checkAccessToken);
+// Protect all subsequent routes
+app.use(requireAuth);
 
-// Home: lista playlist utente
+// Main playlist view
 app.get('/', async (req, res) => {
   const accessToken = req.session.accessToken;
+  
   try {
+    // Get all user playlists
     let playlists = [];
     let nextUrl = 'https://api.spotify.com/v1/me/playlists?limit=50';
 
     while (nextUrl) {
       const response = await axios.get(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
+        timeout: 10000
       });
       playlists.push(...response.data.items);
       nextUrl = response.data.next;
     }
 
+    // Sort by track count (descending)
     playlists.sort((a, b) => b.tracks.total - a.tracks.total);
 
-    const page = Math.max(1, parseInt(req.query.page) || 1); // Fix: sempre >= 1
+    // Pagination
+    const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 6;
     const totalPages = Math.ceil(playlists.length / perPage);
-    const paginated = playlists.slice((page - 1) * perPage, page * perPage);
+    const paginatedPlaylists = playlists.slice((page - 1) * perPage, page * perPage);
 
     const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Le tue Playlist Spotify</title>
         <link rel="stylesheet" href="/styles.css">
       </head>
       <body>
         <div class="container">
-          <h1>Le tue Playlist Spotify</h1>
+          <h1>🎵 Le tue Playlist Spotify</h1>
+          <p class="text-center">Trovate ${playlists.length} playlist</p>
+          
           <div class="row">
-            ${paginated.map(p => `
+            ${paginatedPlaylists.map(playlist => `
               <div class="col-md-4">
                 <div class="card">
-                  <a href="/playlist/${escapeHtml(p.id)}" class="card">
-                    <img src="${escapeHtml(p.images?.[0]?.url || '')}" alt="${escapeHtml(p.name)}" class="card-img-top">
+                  <a href="/playlist/${escapeHtml(playlist.id)}" class="card-link">
+                    <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
+                         alt="${escapeHtml(playlist.name)}" 
+                         class="card-img-top"
+                         onerror="this.src='/placeholder.png'">
                     <div class="card-body">
-                      <h5 class="card-title">${escapeHtml(p.name)}</h5>
-                      <p class="card-text">Proprietario: ${escapeHtml(p.owner.display_name)}</p>
-                      <p class="card-text">Tracce: ${p.tracks.total}</p>
+                      <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
+                      <p class="card-text">👤 ${escapeHtml(playlist.owner.display_name)}</p>
+                      <p class="card-text">🎵 ${playlist.tracks.total} tracce</p>
                     </div>
                   </a>
                 </div>
               </div>
             `).join('')}
           </div>
-          <div class="pagination">
-            ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">Precedente</a>` : ''}
-            ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo</a>` : ''}
+          
+          ${totalPages > 1 ? `
+            <div class="pagination">
+              ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">« Precedente</a>` : ''}
+              <span class="page-info">Pagina ${page} di ${totalPages}</span>
+              ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
+            </div>
+          ` : ''}
+          
+          <div class="text-center mt-4">
+            <a href="/logout" class="btn btn-secondary">Logout</a>
           </div>
         </div>
       </body>
       </html>
     `;
+    
     res.send(html);
   } catch (err) {
-    console.error('Errore playlist:', err.message);
+    console.error('Error fetching playlists:', err.message);
+    if (err.response?.status === 401) {
+      req.session.destroy();
+      return res.redirect('/start');
+    }
     handleError(res, 'Impossibile recuperare le playlist. Riprova più tardi.');
   }
 });
 
+// Playlist detail view
 app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const playlistId = req.params.id;
@@ -250,41 +304,22 @@ app.get('/playlist/:id', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const perPage = 15;
 
-  if (!accessToken) {
-    return res.status(401).send('<h1>Errore</h1><p>Token di accesso mancante o scaduto. Effettua di nuovo il login.</p>');
-  }
-
-  const escapeHtml = (unsafe) => unsafe.replace(/[&<"'>]/g, (c) => {
-    return { '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;', '>': '&gt;' }[c];
-  });
-
-  const renderErrorPage = (message) => res.send(`
-    <!DOCTYPE html>
-    <html lang="it">
-    <head>
-      <meta charset="UTF-8">
-      <title>Errore</title>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    </head>
-    <body class="container py-5">
-      <h1 class="text-danger">Errore</h1>
-      <p>${escapeHtml(message)}</p>
-      <a href="/" class="btn btn-primary mt-3">Torna alla home</a>
-    </body>
-    </html>
-  `);
-
   try {
+    // Get playlist info
     const playlistRes = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000
     });
     const playlist = playlistRes.data;
 
+    // Get all tracks
     let tracks = [];
-    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`;
+    
     while (nextUrl) {
       const trackRes = await axios.get(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
+        timeout: 10000
       });
       tracks.push(...trackRes.data.items);
       nextUrl = trackRes.data.next;
@@ -293,13 +328,15 @@ app.get('/playlist/:id', async (req, res) => {
     let contentHtml = '';
 
     if (view === 'artist') {
+      // Artist view
       const artistsMap = new Map();
 
-      for (const item of tracks) {
+      tracks.forEach(item => {
         const track = item?.track;
-        if (!track || !Array.isArray(track.artists)) continue;
-        for (const artist of track.artists) {
-          if (!artist?.id) continue;
+        if (!track?.artists) return;
+        
+        track.artists.forEach(artist => {
+          if (!artist?.id) return;
           if (!artistsMap.has(artist.id)) {
             artistsMap.set(artist.id, {
               id: artist.id,
@@ -308,60 +345,64 @@ app.get('/playlist/:id', async (req, res) => {
             });
           }
           artistsMap.get(artist.id).trackCount++;
-        }
-      }
+        });
+      });
 
+      // Get artist details in batches
       const artistIds = Array.from(artistsMap.keys());
-      const artistDetails = [];
-      const chunkSize = 50;
-      for (let i = 0; i < artistIds.length; i += chunkSize) {
-        const chunk = artistIds.slice(i, i + chunkSize);
+      const artistImages = new Map();
+      
+      for (let i = 0; i < artistIds.length; i += 50) {
+        const chunk = artistIds.slice(i, i + 50);
         try {
-          const resArtists = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
+          const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 10000
           });
-          artistDetails.push(...resArtists.data.artists);
+          response.data.artists.forEach(artist => {
+            if (artist) {
+              artistImages.set(artist.id, artist.images?.[0]?.url || '/placeholder.png');
+            }
+          });
         } catch (err) {
-          console.warn('Errore fetch artisti:', chunk, err.message);
+          console.warn('Error fetching artist details:', err.message);
         }
       }
 
-      const artistImages = new Map();
-      for (const artist of artistDetails) {
-        artistImages.set(artist.id, artist.images?.[0]?.url || 'https://via.placeholder.com/300?text=No+Image');
-      }
-
-      const artists = artistIds.map(id => ({
-        id,
-        name: artistsMap.get(id).name,
-        trackCount: artistsMap.get(id).trackCount,
-        image: artistImages.get(id)
-      })).sort((a, b) => b.trackCount - a.trackCount);
+      const artists = Array.from(artistsMap.values())
+        .map(artist => ({
+          ...artist,
+          image: artistImages.get(artist.id) || '/placeholder.png'
+        }))
+        .sort((a, b) => b.trackCount - a.trackCount);
 
       contentHtml = `
-        <h2 class="mb-4">Artisti nella playlist: ${escapeHtml(playlist.name)}</h2>
+        <h2 class="mb-4">🎤 Artisti nella playlist</h2>
         <div class="row">
           ${artists.map(artist => `
             <div class="col-md-4 mb-4">
-              <div class="card h-100 shadow-sm border-0">
-                <img src="${escapeHtml(artist.image)}" class="card-img-top" alt="${escapeHtml(artist.name)}">
+              <div class="card h-100">
+                <img src="${escapeHtml(artist.image)}" 
+                     class="card-img-top" 
+                     alt="${escapeHtml(artist.name)}"
+                     onerror="this.src='/placeholder.png'">
                 <div class="card-body">
                   <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                  <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
+                  <p class="card-text">🎵 ${artist.trackCount} brani</p>
                 </div>
               </div>
             </div>
           `).join('')}
         </div>
       `;
-
     } else {
+      // Album view
       const albumsMap = new Map();
 
-      for (const item of tracks) {
-        const track = item.track;
-        if (!track || !track.album) continue;
-        if (track.album.album_type !== 'album') continue;
+      tracks.forEach(item => {
+        const track = item?.track;
+        if (!track?.album || track.album.album_type !== 'album') return;
+        
         const albumId = track.album.id;
         if (!albumsMap.has(albumId)) {
           albumsMap.set(albumId, {
@@ -371,47 +412,57 @@ app.get('/playlist/:id', async (req, res) => {
           });
         }
         albumsMap.get(albumId).tracksInPlaylist.add(track.id);
-      }
-
-      const albums = Array.from(albumsMap.values()).map(a => {
-        const perc = a.totalTracks === 0 ? 0 : Math.round((a.tracksInPlaylist.size / a.totalTracks) * 100);
-        return {
-          id: a.album.id,
-          name: a.album.name,
-          artist: a.album.artists.map(ar => ar.name).join(', '),
-          image: a.album.images[0]?.url || 'https://via.placeholder.com/300?text=No+Image',
-          tracksPresent: a.tracksInPlaylist.size,
-          totalTracks: a.totalTracks,
-          percentuale: perc
-        };
       });
 
-      albums.sort((a, b) => b.percentuale - a.percentuale);
+      const albums = Array.from(albumsMap.values()).map(entry => {
+        const percentage = entry.totalTracks === 0 ? 0 : 
+          Math.round((entry.tracksInPlaylist.size / entry.totalTracks) * 100);
+        return {
+          id: entry.album.id,
+          name: entry.album.name,
+          artist: entry.album.artists.map(a => a.name).join(', '),
+          image: entry.album.images?.[0]?.url || '/placeholder.png',
+          tracksPresent: entry.tracksInPlaylist.size,
+          totalTracks: entry.totalTracks,
+          percentage
+        };
+      }).sort((a, b) => b.percentage - a.percentage);
+
       const totalPages = Math.ceil(albums.length / perPage);
-      const paginated = albums.slice((page - 1) * perPage, page * perPage);
+      const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
 
       contentHtml = `
-        <h2 class="mb-4">Album nella playlist: ${escapeHtml(playlist.name)}</h2>
+        <h2 class="mb-4">💿 Album nella playlist</h2>
         <div class="row">
-          ${paginated.map(album => `
+          ${paginatedAlbums.map(album => `
             <div class="col-md-4 mb-4">
               <div class="card h-100">
                 <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
-                  <img src="${escapeHtml(album.image)}" class="card-img-top" alt="${escapeHtml(album.name)}">
+                  <img src="${escapeHtml(album.image)}" 
+                       class="card-img-top" 
+                       alt="${escapeHtml(album.name)}"
+                       onerror="this.src='/placeholder.png'">
                   <div class="card-body">
                     <h5 class="card-title">${escapeHtml(album.name)}</h5>
-                    <p class="card-text">Artista: ${escapeHtml(album.artist)}</p>
-                    <p class="card-text">Tracce nella playlist: ${album.tracksPresent} / ${album.totalTracks} <strong>(${album.percentuale}%)</strong></p>
+                    <p class="card-text">👤 ${escapeHtml(album.artist)}</p>
+                    <p class="card-text">
+                      🎵 ${album.tracksPresent}/${album.totalTracks} 
+                      <strong>(${album.percentage}%)</strong>
+                    </p>
                   </div>
                 </a>
               </div>
             </div>
           `).join('')}
         </div>
-        <div class="d-flex justify-content-between mt-4">
-          ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-outline-primary">Precedente</a>` : '<div></div>'}
-          ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-outline-primary">Successivo</a>` : ''}
-        </div>
+        
+        ${totalPages > 1 ? `
+          <div class="pagination">
+            ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">« Precedente</a>` : ''}
+            <span class="page-info">Pagina ${page} di ${totalPages}</span>
+            ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
+          </div>
+        ` : ''}
       `;
     }
 
@@ -420,95 +471,120 @@ app.get('/playlist/:id', async (req, res) => {
       <html lang="it">
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Playlist: ${escapeHtml(playlist.name)}</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="/styles.css">
       </head>
-      <body class="container py-4">
-        <h1 class="text-center">${escapeHtml(playlist.name)}</h1>
-        <p class="text-center">Proprietario: ${escapeHtml(playlist.owner.display_name)}</p>
-        <p class="text-center">Numero tracce: ${playlist.tracks.total}</p>
+      <body>
+        <div class="container">
+          <h1>🎵 ${escapeHtml(playlist.name)}</h1>
+          <p class="text-center">👤 ${escapeHtml(playlist.owner.display_name)}</p>
+          <p class="text-center">🎵 ${playlist.tracks.total} tracce</p>
 
-        <div class="text-center my-4">
-          <a href="/playlist/${escapeHtml(playlistId)}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">Vista Album</a>
-          <a href="/playlist/${escapeHtml(playlistId)}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">Vista Artisti</a>
-        </div>
+          <div class="view-toggle">
+            <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
+               class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
+               💿 Vista Album
+            </a>
+            <a href="/playlist/${escapeHtml(playlistId)}?view=artist" 
+               class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
+               🎤 Vista Artisti
+            </a>
+          </div>
 
-        ${contentHtml}
+          ${contentHtml}
 
-        <div class="text-center mt-4">
-          <a href="/" class="btn btn-secondary">Torna alle playlist</a>
+          <div class="text-center mt-4">
+            <a href="/" class="btn btn-secondary">← Torna alle playlist</a>
+          </div>
         </div>
       </body>
       </html>
     `;
 
     res.send(html);
-
   } catch (err) {
-    console.error('Errore nel dettaglio playlist:', err.message);
-    return renderErrorPage('Errore nel recuperare i dettagli della playlist. Riprova più tardi.');
+    console.error('Error fetching playlist details:', err.message);
+    if (err.response?.status === 401) {
+      req.session.destroy();
+      return res.redirect('/start');
+    }
+    handleError(res, 'Errore nel recuperare i dettagli della playlist.');
   }
 });
 
-// Dettaglio album con confronto con playlist
+// Album detail view
 app.get('/album/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const albumId = req.params.id;
   const playlistId = req.query.playlistId;
 
   try {
-    // Recupera dati dell'album
+    // Get album details
     const albumResponse = await axios.get(`https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000
     });
     const album = albumResponse.data;
-    const albumTracks = album.tracks.items;
 
-    // Recupera gli URI delle tracce della playlist, se playlistId è fornito
+    // Get playlist tracks if playlistId provided
     let playlistTrackUris = [];
     if (playlistId) {
-      let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+      let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`;
       while (nextUrl) {
         const playlistResponse = await axios.get(nextUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` }
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 10000
         });
-        const items = playlistResponse.data.items;
         playlistTrackUris.push(
-          ...items.map(item => item.track && item.track.uri).filter(Boolean)
+          ...playlistResponse.data.items
+            .map(item => item.track?.uri)
+            .filter(Boolean)
         );
         nextUrl = playlistResponse.data.next;
       }
     }
 
-    // Calcola la percentuale di tracce dell'album presenti nella playlist
-    const totaleTracce = albumTracks.length;
-    const traccePresenti = albumTracks.filter(track => playlistTrackUris.includes(track.uri)).length;
-    const percentuale = totaleTracce === 0 ? 0 : Math.round((traccePresenti / totaleTracce) * 100);
-
-    // Costruisci l’HTML di risposta
     const html = `
       <!DOCTYPE html>
       <html lang="it">
       <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Album - ${escapeHtml(album.name)}</title>
-        <link rel="stylesheet" href="/styles.css" />
+        <link rel="stylesheet" href="/styles.css">
       </head>
       <body>
         <div class="container">
-          <h1>${escapeHtml(album.name)} - ${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h1>
-          <img src="${escapeHtml(album.images[0]?.url || '')}" alt="${escapeHtml(album.name)}" style="max-width: 300px;" />
-          <ol>
-            Tracce:
-            ${albumTracks.map(track => {
-              const presente = playlistTrackUris.includes(track.uri);
-              return `<li style="color: ${presente ? 'green' : 'red'}">
-                        ${escapeHtml(track.name)} ${presente ? '✅' : '❌'}
-                      </li>`;
+          <div class="album-header">
+            <img src="${escapeHtml(album.images?.[0]?.url || '/placeholder.png')}" 
+                 alt="${escapeHtml(album.name)}" 
+                 class="album-cover"
+                 onerror="this.src='/placeholder.png'">
+            <div class="album-info">
+              <h1>💿 ${escapeHtml(album.name)}</h1>
+              <h2>👤 ${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h2>
+              <p>📅 ${album.release_date}</p>
+              <p>🎵 ${album.total_tracks} tracce</p>
+            </div>
+          </div>
+          
+          <h3>Tracklist:</h3>
+          <ol class="tracklist">
+            ${album.tracks.items.map(track => {
+              const isInPlaylist = playlistTrackUris.includes(track.uri);
+              return `
+                <li class="track-item ${isInPlaylist ? 'in-playlist' : 'not-in-playlist'}">
+                  <span class="track-name">${escapeHtml(track.name)}</span>
+                  <span class="track-status">${isInPlaylist ? '✅' : '❌'}</span>
+                </li>
+              `;
             }).join('')}
           </ol>
-          <p><a href="javascript:history.back()" class="btn btn-secondary">Torna indietro</a></p>
+          
+          <div class="text-center mt-4">
+            <button onclick="history.back()" class="btn btn-secondary">← Torna indietro</button>
+          </div>
         </div>
       </body>
       </html>
@@ -516,10 +592,38 @@ app.get('/album/:id', async (req, res) => {
 
     res.send(html);
   } catch (err) {
-    console.error('Errore nel dettaglio album:', err.message);
-    handleError(res, 'Impossibile recuperare i dettagli dell\'album. Riprova più tardi.');
+    console.error('Error fetching album details:', err.message);
+    if (err.response?.status === 401) {
+      req.session.destroy();
+      return res.redirect('/start');
+    }
+    handleError(res, 'Impossibile recuperare i dettagli dell\'album.');
   }
 });
 
-// Avvio server
-app.listen(port, () => console.log(`Server avviato sulla porta ${port}`));
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Session destruction error:', err);
+    }
+    res.redirect('/start');
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  handleError(res, 'Pagina non trovata', 404);
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  handleError(res, 'Si è verificato un errore interno del server');
+});
+
+// Start server
+app.listen(port, () => {
+  console.log(`🎵 Spotify Playlist Analyzer running on port ${port}`);
+  console.log(`🌐 Visit: http://localhost:${port}/start`);
+});
