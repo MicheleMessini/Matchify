@@ -246,8 +246,6 @@ app.get('/', async (req, res) => {
                          onerror="this.src='/placeholder.png'">
                     <div class="card-body">
                       <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
-                      <p class="card-text">${escapeHtml(playlist.owner.display_name)}</p>
-                      <p class="card-text">${playlist.tracks.total} tracce</p>
                     </div>
                   </a>
                 </div>
