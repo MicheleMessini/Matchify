@@ -287,20 +287,21 @@ app.get('/playlist/:id', async (req, res) => {
       const artistsMap = new Map();
 
       for (const item of tracks) {
-        const track = item?.track;
-        if (!track || !Array.isArray(track.artists)) continue;
-        for (const artist of track.artists) {
-          if (!artist?.id) continue;
-          if (!artistsMap.has(artist.id)) {
-            artistsMap.set(artist.id, {
-              id: artist.id,
-              name: artist.name || 'Sconosciuto',
-              trackCount: 0
-            });
-          }
-          artistsMap.get(artist.id).trackCount++;
+      const track = item?.track;
+      if (!track || !Array.isArray(track.artists)) continue;
+    
+      for (const artist of track.artists) {
+        if (!artist?.id) continue;
+        if (!artistsMap.has(artist.id)) {
+          artistsMap.set(artist.id, {
+            id: artist.id,
+            name: artist.name || 'Sconosciuto',
+            trackCount: 0
+          });
         }
+        artistsMap.get(artist.id).trackCount++;
       }
+    }
 
       const artistIds = Array.from(artistsMap.keys());
       const artistDetails = [];
