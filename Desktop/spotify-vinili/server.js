@@ -234,7 +234,6 @@ app.get('/', async (req, res) => {
       <body>
         <div class="container">
           <h1>Le tue Playlist Spotify</h1>
-          <p class="text-center">Trovate ${playlists.length} playlist</p>
           
           <div class="row">
             ${paginatedPlaylists.map(playlist => `
