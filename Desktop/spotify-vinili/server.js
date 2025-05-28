@@ -245,113 +245,126 @@ app.get('/', async (req, res) => {
 
 app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
-  const playlistId = req.params.id;
-  const view = req.query.view || 'album'; // 'album' o 'artist'
+const playlistId = req.params.id;
+const view = req.query.view || 'album';
 
-  if (!accessToken) {
-    return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
-  }
+if (!accessToken) {
+  return handleError(res, 'Token di accesso mancante o scaduto. Riprova a fare login.');
+}
 
-  try {
-    // Recupera info playlist
-    const playlistResponse = await axios.get(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
+try {
+  // Recupera informazioni della playlist
+  const playlistResponse = await axios.get(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const playlist = playlistResponse.data;
+
+  // Carica tutte le tracce (paginazione)
+  let tracks = [];
+  let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+  while (nextUrl) {
+    const response = await axios.get(nextUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-    const playlist = playlistResponse.data;
+    tracks.push(...response.data.items);
+    nextUrl = response.data.next;
+  }
 
-    // Recupera tutte le tracce (paginazione manuale)
-    let tracks = [];
-    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
-    while (nextUrl) {
-      const response = await axios.get(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      tracks.push(...response.data.items);
-      nextUrl = response.data.next;
+  console.log(`Playlist "${playlist.name}" caricata con ${tracks.length} tracce.`);
+
+  let contentHtml = '';
+
+  if (view === 'artist') {
+    const artistsMap = new Map();
+
+    // Mappatura artisti
+    for (const item of tracks) {
+      const track = item?.track;
+      if (!track || !Array.isArray(track.artists)) continue;
+
+      for (const artist of track.artists) {
+        if (!artist?.id) continue;
+        if (!artistsMap.has(artist.id)) {
+          artistsMap.set(artist.id, {
+            id: artist.id,
+            name: artist.name || 'Sconosciuto',
+            trackCount: 0
+          });
+        }
+        artistsMap.get(artist.id).trackCount++;
+      }
     }
 
-    console.log(`Playlist "${playlist.name}" caricata con ${tracks.length} tracce.`);
+    const artistIds = Array.from(artistsMap.keys()).filter(Boolean);
+    console.log(`Numero artisti unici trovati: ${artistIds.length}`);
 
-    let contentHtml = '';
+    const chunkSize = 50;
+    const artistDetails = [];
 
-    if (view === 'artist') {
-      // Mappa per artisti con contatore tracce
-      const artistsMap = new Map();
+    for (let i = 0; i < artistIds.length; i += chunkSize) {
+      const chunk = artistIds.slice(i, i + chunkSize);
+      try {
+        const response = await axios.get(
+          `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
 
-      for (const item of tracks) {
-        const track = item.track;
-        if (!track || !track.artists) continue;
-        for (const artist of track.artists) {
-          if (!artist || !artist.id) continue;
-          if (!artistsMap.has(artist.id)) {
-            artistsMap.set(artist.id, {
-              id: artist.id,
-              name: artist.name,
-              trackCount: 0
-            });
-          }
-          artistsMap.get(artist.id).trackCount++;
+        if (Array.isArray(response.data?.artists)) {
+          artistDetails.push(...response.data.artists);
+        } else {
+          console.warn('Risposta non valida per artisti:', chunk);
         }
+      } catch (err) {
+        console.error('Errore durante fetch artisti:', chunk, err.response?.data || err.message);
       }
+    }
 
-      // Ottieni IDs unici e filtra eventuali falsy
-      const artistIds = Array.from(artistsMap.keys()).filter(id => !!id);
-      console.log(`Numero artisti unici trovati: ${artistIds.length}`);
+    // Mappa immagini artista
+    const artistImages = new Map();
+    for (const artist of artistDetails) {
+      artistImages.set(artist.id, artist.images?.[0]?.url || null);
+    }
 
-      // Chunks di max 50 artisti per chiamata
-      const chunkSize = 50;
-      const artistDetails = [];
+    const artists = artistIds.map(id => ({
+      id,
+      name: artistsMap.get(id).name,
+      trackCount: artistsMap.get(id).trackCount,
+      image: artistImages.get(id)
+    })).sort((a, b) => b.trackCount - a.trackCount);
 
-      for (let i = 0; i < artistIds.length; i += chunkSize) {
-        const chunk = artistIds.slice(i, i + chunkSize);
-        try {
-          console.log('Chiamata a Spotify per artisti con IDs:', chunk);
-          const response = await axios.get(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          });
-          if (response.data && Array.isArray(response.data.artists)) {
-            artistDetails.push(...response.data.artists);
-          } else {
-            console.warn('Nessun artista trovato per chunk:', chunk);
-          }
-        } catch (err) {
-          console.error('Errore nella chiamata a Spotify artisti per chunk:', chunk, err.response?.data || err.message);
-          // Qui puoi scegliere se continuare o fallire, io continuo
-        }
-      }
+    const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
 
-      // Mappa immagini artista
-      const artistImagesMap = new Map();
-      for (const artist of artistDetails) {
-        artistImagesMap.set(artist.id, artist.images[0]?.url || null);
-      }
-
-      // Prepara array artisti ordinato per trackCount decrescente
-      const artists = artistIds.map(id => ({
-        id,
-        name: artistsMap.get(id).name,
-        trackCount: artistsMap.get(id).trackCount,
-        image: artistImagesMap.get(id)
-      })).sort((a, b) => b.trackCount - a.trackCount);
-
-      const placeholderImg = 'https://via.placeholder.com/300?text=No+Image';
-
-      contentHtml = `
-        <h2>Artisti presenti nella playlist</h2>
-        <div class="row">
-          ${artists.map(artist => `
-            <div class="col-md-4">
-              <div class="card">
-                <img src="${escapeHtml(artist.image || placeholderImg)}" alt="Foto di ${escapeHtml(artist.name)}" class="card-img-top" />
-                <div class="card-body">
-                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                  <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
-                </div>
+    contentHtml = `
+      <h2 class="mb-4">Artisti presenti nella playlist "${escapeHtml(playlist.name)}"</h2>
+      <div class="row">
+        ${artists.map(artist => `
+          <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm border-0">
+              <img src="${escapeHtml(artist.image || placeholderImg)}" class="card-img-top" alt="Immagine di ${escapeHtml(artist.name)}">
+              <div class="card-body">
+                <h5 class="card-title">${escapeHtml(artist.name)}</h5>
+                <p class="card-text">Brani nella playlist: ${artist.trackCount}</p>
               </div>
             </div>
-          `).join('')}
-        </div>
-      `;
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Mostra il contenuto generato
+  res.send(`
+    <html>
+      <head>
+        <title>Artisti playlist</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+      </head>
+      <body class="container py-4">
+        ${contentHtml}
+      </body>
+    </html>
+  `);
 
     } else {
       // Visualizza album come prima (non modificato)
