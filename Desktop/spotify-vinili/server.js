@@ -433,31 +433,32 @@ app.get('/playlist/:id', async (req, res) => {
       }
 
       const artists = Array.from(artistsMap.values())
-        .map(artist => ({
-          ...artist,
-          image: artistImages.get(artist.id) || '/placeholder.png'
-        }))
-        .sort((a, b) => b.trackCount - a.trackCount);
-
-      contentHtml = `
-        <h2 class="mb-4">Artisti nella playlist (${artists.length})</h2>
-        <div class="row">
-          ${artists.map(artist => `
-            <div class="col-md-4 mb-4">
-              <div class="card h-100">
-                <img src="${escapeHtml(artist.image)}" 
-                     class="card-img-top" 
-                     alt="${escapeHtml(artist.name)}"
-                     onerror="this.src='/placeholder.png'">
-                <div class="card-body">
-                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                  <p class="card-text">${artist.trackCount} brani</p>
-                </div>
+      .map(artist => ({
+        ...artist,
+        image: artistImages.get(artist.id) || '/placeholder.png'
+      }))
+      .sort((a, b) => b.trackCount - a.trackCount)
+      .slice(0, 50); // Limita ai primi 50 artisti
+    
+    contentHtml = `
+      <h2 class="mb-4">Top 50 Artisti nella playlist (${artists.length})</h2>
+      <div class="row">
+        ${artists.map(artist => `
+          <div class="col-md-4 mb-4">
+            <div class="card h-100">
+              <img src="${escapeHtml(artist.image)}" 
+                   class="card-img-top" 
+                   alt="${escapeHtml(artist.name)}"
+                   onerror="this.src='/placeholder.png'">
+              <div class="card-body">
+                <h5 class="card-title">${escapeHtml(artist.name)}</h5>
+                <p class="card-text">${artist.trackCount} brani</p>
               </div>
             </div>
-          `).join('')}
-        </div>
-      `;
+          </div>
+        `).join('')}
+      </div>
+    `;
     } else {
       // Album view
       const albumsMap = new Map();
