@@ -192,7 +192,6 @@ app.get('/start', (req, res) => {
       <body>
         <div class="container">
           <h1>Matchify</h1>
-          <p class="text-center">Scopri quanto i tuoi album preferiti sono presenti nelle tue playlist Spotify</p>
           <div style="text-align:center; margin-top: 2rem;">
             <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
           </div>
