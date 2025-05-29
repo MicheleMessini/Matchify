@@ -232,15 +232,6 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-app.get('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Logout error:', err);
-    }
-    res.redirect('/start');
-  });
-});
-
 // Protect all subsequent routes
 app.use(requireAuth);
 
@@ -335,10 +326,6 @@ app.get('/', async (req, res) => {
               ${page < totalPages ? `<a href="/?sort=${sortBy}&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
             </div>
           ` : ''}
-          
-          <div class="text-center mt-4">
-            <a href="/logout" class="btn btn-secondary">Logout</a>
-          </div>
         </div>
       </body>
       </html>
