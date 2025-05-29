@@ -711,3 +711,7 @@ app.get('/album/:id', async (req, res) => {
     return handleError(res, 'Errore nel recupero dei dettagli dell\'album', 500);
   }
 });
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
+})
