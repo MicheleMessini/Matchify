@@ -94,7 +94,7 @@ a {
 
 a:hover {
   color: var(--primary-hover);
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 /* Layout */
