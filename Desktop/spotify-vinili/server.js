@@ -353,6 +353,10 @@ app.get('/playlist/:id', async (req, res) => {
   }
 
   const accessToken = req.session.accessToken;
+  if (!accessToken) {
+    return res.redirect('/start');
+  }
+
   const view = req.query.view === 'artist' ? 'artist' : 'album';
   const page = validatePageNumber(req.query.page);
   const perPage = 15;
@@ -364,232 +368,440 @@ app.get('/playlist/:id', async (req, res) => {
       accessToken
     );
 
-    // Get all tracks
-    let tracks = [];
-    let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`;
-    
-    while (nextUrl) {
-      const data = await makeSpotifyRequest(nextUrl, accessToken);
-      tracks.push(...data.items.filter(item => item?.track)); // Filter out null tracks
-      nextUrl = data.next;
-    }
+    // Get all tracks with improved error handling
+    const tracks = await fetchAllPlaylistTracks(playlistId, accessToken);
 
     let contentHtml = '';
 
     if (view === 'artist') {
-      // Artist view
-      const artistsMap = new Map();
-
-      tracks.forEach(item => {
-        const track = item.track;
-        if (!track?.artists) return;
-        
-        track.artists.forEach(artist => {
-          if (!artist?.id) return;
-          if (!artistsMap.has(artist.id)) {
-            artistsMap.set(artist.id, {
-              id: artist.id,
-              name: artist.name || 'Sconosciuto',
-              trackCount: 0
-            });
-          }
-          artistsMap.get(artist.id).trackCount++;
-        });
-      });
-
-      // Get artist details in batches
-      const artistIds = Array.from(artistsMap.keys());
-      const artistImages = new Map();
-      
-      for (let i = 0; i < artistIds.length; i += 50) {
-        const chunk = artistIds.slice(i, i + 50);
-        try {
-          const data = await makeSpotifyRequest(
-            `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
-            accessToken
-          );
-          data.artists.forEach(artist => {
-            if (artist) {
-              artistImages.set(artist.id, artist.images?.[0]?.url || '/placeholder.png');
-            }
-          });
-        } catch (err) {
-          console.warn('Error fetching artist details:', err.message);
-        }
-      }
-
-      const artists = Array.from(artistsMap.values())
-        .map(artist => ({
-          ...artist,
-          image: artistImages.get(artist.id) || '/placeholder.png'
-        }))
-        .sort((a, b) => b.trackCount - a.trackCount)
-        .slice(0, 50); // Limita ai primi 50 artisti
-    
-      contentHtml = `
-        <h2 class="mb-4">Top 50 Artisti nella playlist</h2>
-        <div class="row">
-          ${artists.map(artist => `
-            <div class="col-md-4 mb-4">
-              <div class="card h-100">
-                <img src="${escapeHtml(artist.image)}" 
-                     class="card-img-top" 
-                     alt="${escapeHtml(artist.name)}"
-                     onerror="this.src='/placeholder.png'"
-                     loading="lazy">
-                <div class="card-body">
-                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                  <p class="card-text">
-                    <span class="badge bg-primary">${artist.trackCount} brani</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+      contentHtml = await generateArtistView(tracks, accessToken);
     } else {
-      // Album view
-      const albumsMap = new Map();
-
-      tracks.forEach(item => {
-        const track = item.track;
-        if (!track?.album || track.album.album_type !== 'album') return;
-        
-        const albumId = track.album.id;
-        if (!albumsMap.has(albumId)) {
-          albumsMap.set(albumId, {
-            album: track.album,
-            tracksInPlaylist: new Set(),
-            totalTracks: track.album.total_tracks || 0
-          });
-        }
-        albumsMap.get(albumId).tracksInPlaylist.add(track.id);
-      });
-
-      const albums = Array.from(albumsMap.values()).map(entry => {
-        const percentage = entry.totalTracks === 0 ? 0 : 
-          Math.round((entry.tracksInPlaylist.size / entry.totalTracks) * 100);
-        return {
-          id: entry.album.id,
-          name: entry.album.name,
-          artist: entry.album.artists?.map(a => a.name).join(', ') || 'Artista sconosciuto',
-          image: entry.album.images?.[0]?.url || '/placeholder.png',
-          tracksPresent: entry.tracksInPlaylist.size,
-          totalTracks: entry.totalTracks,
-          percentage
-        };
-      }).sort((a, b) => b.percentage - a.percentage);
-
-      const totalPages = Math.ceil(albums.length / perPage);
-      const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
-
-      contentHtml = `
-        <h2 class="mb-4">Album nella playlist (${albums.length})</h2>
-        <div class="row">
-          ${paginatedAlbums.map(album => `
-            <div class="col-md-4 mb-4">
-              <div class="card h-100">
-                <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link text-decoration-none">
-                  <img src="${escapeHtml(album.image)}" 
-                       class="card-img-top" 
-                       alt="${escapeHtml(album.name)}"
-                       onerror="this.src='/placeholder.png'"
-                       loading="lazy">
-                  <div class="card-body">
-                    <h5 class="card-title text-dark">${escapeHtml(album.name)}</h5>
-                    <p class="card-text">
-                      <small class="text-muted">${escapeHtml(album.artist)}</small>
-                    </p>
-                    <p class="card-text">
-                      <span class="badge ${album.percentage >= 50 ? 'bg-success' : album.percentage >= 25 ? 'bg-warning' : 'bg-secondary'}">
-                        ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
-                      </span>
-                    </p>
-                  </div>
-                </a>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-        
-        ${totalPages > 1 ? `
-          <nav aria-label="Navigazione pagine">
-            <div class="d-flex justify-content-between align-items-center mt-4">
-              ${page > 1 ? 
-                `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">« Precedente</a>` : 
-                '<span></span>'
-              }
-              <span class="page-info">Pagina ${page} di ${totalPages}</span>
-              ${page < totalPages ? 
-                `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : 
-                '<span></span>'
-              }
-            </div>
-          </nav>
-        ` : ''}
-      `;
+      const { html, totalPages } = await generateAlbumView(tracks, playlistId, page, perPage);
+      contentHtml = html;
     }
 
-    const html = `
-      <!DOCTYPE html>
-      <html lang="it">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Playlist: ${escapeHtml(playlist.name)}</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="/styles.css">
-        <style>
-          .card-img-top { height: 200px; object-fit: cover; }
-          .card-link:hover { text-decoration: none !important; }
-          .view-toggle .btn { margin: 0 5px; }
-        </style>
-      </head>
-      <body>
-        <div class="container mt-4">
-          <div class="mb-4">
-            <h1>${escapeHtml(playlist.name)}</h1>
-            <p class="text-muted text-center">${playlist.tracks?.total || 0} brani totali</p>
-          </div>
-
-          <div class="view-toggle mb-4 text-center">
-            <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
-               class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               Album
-            </a>
-            <a href="/playlist/${escapeHtml(playlistId)}?view=artist" 
-               class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               Top Artisti
-            </a>
-          </div>
-
-          ${contentHtml}
-
-          <div class="text-center mt-5">
-            <a href="/" class="btn btn-secondary">← Torna alle playlist</a>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
+    const html = generatePlaylistHTML(playlist, playlistId, view, contentHtml);
     res.send(html);
+
   } catch (err) {
     console.error('Error fetching playlist details:', err.message);
-    if (err.message === 'UNAUTHORIZED') {
-      req.session.destroy();
-      return res.redirect('/start');
-    }
-    if (err.response?.status === 404) {
-      return handleError(res, 'Playlist non trovata', 404);
-    }
-    if (err.message === 'RATE_LIMITED') {
-      return handleError(res, 'Troppe richieste. Riprova tra qualche minuto.', 429);
-    }
-    handleError(res, 'Errore nel recuperare i dettagli della playlist.');
+    return handlePlaylistError(err, req, res);
   }
 });
+
+// Helper function to fetch all playlist tracks
+async function fetchAllPlaylistTracks(playlistId, accessToken) {
+  const tracks = [];
+  let nextUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`;
+  let requestCount = 0;
+  const maxRequests = 50; // Prevent infinite loops
+  
+  while (nextUrl && requestCount < maxRequests) {
+    try {
+      const data = await makeSpotifyRequest(nextUrl, accessToken);
+      
+      // Filter out null/invalid tracks
+      const validTracks = data.items.filter(item => 
+        item?.track && 
+        item.track.id && 
+        item.track.name
+      );
+      
+      tracks.push(...validTracks);
+      nextUrl = data.next;
+      requestCount++;
+      
+      // Add small delay to respect rate limits
+      if (nextUrl) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (err) {
+      console.warn(`Error fetching tracks batch ${requestCount + 1}:`, err.message);
+      break;
+    }
+  }
+
+  return tracks;
+}
+
+// Generate artist view content
+async function generateArtistView(tracks, accessToken) {
+  const artistsMap = new Map();
+
+  // Collect artists and count tracks
+  tracks.forEach(item => {
+    const track = item.track;
+    if (!track?.artists || !Array.isArray(track.artists)) return;
+    
+    track.artists.forEach(artist => {
+      if (!artist?.id || !artist?.name) return;
+      
+      if (!artistsMap.has(artist.id)) {
+        artistsMap.set(artist.id, {
+          id: artist.id,
+          name: artist.name.trim(),
+          trackCount: 0
+        });
+      }
+      artistsMap.get(artist.id).trackCount++;
+    });
+  });
+
+  // Get artist images in batches
+  const artistIds = Array.from(artistsMap.keys());
+  const artistImages = await fetchArtistImages(artistIds, accessToken);
+
+  // Prepare final artist list
+  const artists = Array.from(artistsMap.values())
+    .map(artist => ({
+      ...artist,
+      image: artistImages.get(artist.id) || '/placeholder.png'
+    }))
+    .sort((a, b) => {
+      // Sort by track count desc, then by name asc
+      if (b.trackCount !== a.trackCount) {
+        return b.trackCount - a.trackCount;
+      }
+      return a.name.localeCompare(b.name, 'it');
+    })
+    .slice(0, 50); // Limit to top 50 artists
+
+  return `
+    <h2 class="mb-4">Top ${artists.length} Artisti nella playlist</h2>
+    <div class="row">
+      ${artists.map(artist => `
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+          <div class="card artist-card h-100">
+            <img src="${escapeHtml(artist.image)}" 
+                 class="card-img-top" 
+                 alt="${escapeHtml(artist.name)}"
+                 onerror="this.src='/placeholder.png'"
+                 loading="lazy">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title text-truncate" title="${escapeHtml(artist.name)}">
+                ${escapeHtml(artist.name)}
+              </h5>
+              <div class="mt-auto">
+                <span class="badge bg-primary">
+                  ${artist.trackCount} ${artist.trackCount === 1 ? 'brano' : 'brani'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// Fetch artist images in batches
+async function fetchArtistImages(artistIds, accessToken) {
+  const artistImages = new Map();
+  const batchSize = 50;
+  
+  for (let i = 0; i < artistIds.length; i += batchSize) {
+    const chunk = artistIds.slice(i, i + batchSize);
+    
+    try {
+      const data = await makeSpotifyRequest(
+        `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
+        accessToken
+      );
+      
+      if (data.artists && Array.isArray(data.artists)) {
+        data.artists.forEach(artist => {
+          if (artist && artist.id) {
+            const imageUrl = artist.images?.[0]?.url || 
+                           artist.images?.[1]?.url || 
+                           '/placeholder.png';
+            artistImages.set(artist.id, imageUrl);
+          }
+        });
+      }
+      
+      // Rate limiting delay
+      if (i + batchSize < artistIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    } catch (err) {
+      console.warn(`Error fetching artist details for batch ${Math.floor(i/batchSize) + 1}:`, err.message);
+      // Continue with next batch instead of failing completely
+    }
+  }
+  
+  return artistImages;
+}
+
+// Generate album view content
+async function generateAlbumView(tracks, playlistId, page, perPage) {
+  const albumsMap = new Map();
+
+  // Collect albums and track counts
+  tracks.forEach(item => {
+    const track = item.track;
+    if (!track?.album || !track.album.id) return;
+    
+    // Only include actual albums, not singles/compilations if specified
+    // Uncomment next line if you want to filter only albums
+    // if (track.album.album_type !== 'album') return;
+    
+    const albumId = track.album.id;
+    if (!albumsMap.has(albumId)) {
+      albumsMap.set(albumId, {
+        album: track.album,
+        tracksInPlaylist: new Set(),
+        totalTracks: track.album.total_tracks || 0
+      });
+    }
+    albumsMap.get(albumId).tracksInPlaylist.add(track.id);
+  });
+
+  // Process albums data
+  const albums = Array.from(albumsMap.values()).map(entry => {
+    const tracksPresent = entry.tracksInPlaylist.size;
+    const totalTracks = entry.totalTracks;
+    const percentage = totalTracks === 0 ? 0 : Math.round((tracksPresent / totalTracks) * 100);
+    
+    return {
+      id: entry.album.id,
+      name: entry.album.name?.trim() || 'Album sconosciuto',
+      artist: entry.album.artists?.map(a => a.name?.trim()).filter(Boolean).join(', ') || 'Artista sconosciuto',
+      image: entry.album.images?.[0]?.url || 
+             entry.album.images?.[1]?.url || 
+             '/placeholder.png',
+      tracksPresent,
+      totalTracks,
+      percentage,
+      releaseDate: entry.album.release_date || null
+    };
+  }).sort((a, b) => {
+    // Sort by percentage desc, then by tracks present desc, then by name asc
+    if (b.percentage !== a.percentage) {
+      return b.percentage - a.percentage;
+    }
+    if (b.tracksPresent !== a.tracksPresent) {
+      return b.tracksPresent - a.tracksPresent;
+    }
+    return a.name.localeCompare(b.name, 'it');
+  });
+
+  const totalPages = Math.ceil(albums.length / perPage);
+  const paginatedAlbums = albums.slice((page - 1) * perPage, page * perPage);
+
+  const html = `
+    <h2 class="mb-4">Album nella playlist (${albums.length})</h2>
+    <div class="row">
+      ${paginatedAlbums.map(album => `
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+          <div class="card album-card h-100">
+            <a href="/album/${escapeHtml(album.id)}?playlistId=${encodeURIComponent(playlistId)}" 
+               class="card-link text-decoration-none">
+              <img src="${escapeHtml(album.image)}" 
+                   class="card-img-top" 
+                   alt="${escapeHtml(album.name)}"
+                   onerror="this.src='/placeholder.png'"
+                   loading="lazy">
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title text-dark text-truncate" title="${escapeHtml(album.name)}">
+                  ${escapeHtml(album.name)}
+                </h5>
+                <p class="card-text flex-grow-1">
+                  <small class="text-muted text-truncate d-block" title="${escapeHtml(album.artist)}">
+                    ${escapeHtml(album.artist)}
+                  </small>
+                </p>
+                <div class="mt-auto">
+                  <span class="badge ${getBadgeClass(album.percentage)}">
+                    ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
+                  </span>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    
+    ${generatePagination(playlistId, page, totalPages)}
+  `;
+
+  return { html, totalPages };
+}
+
+// Get badge class based on percentage
+function getBadgeClass(percentage) {
+  if (percentage >= 75) return 'bg-success';
+  if (percentage >= 50) return 'bg-info';
+  if (percentage >= 25) return 'bg-warning';
+  return 'bg-secondary';
+}
+
+// Generate pagination HTML
+function generatePagination(playlistId, page, totalPages) {
+  if (totalPages <= 1) return '';
+
+  const prevPage = page > 1 ? page - 1 : null;
+  const nextPage = page < totalPages ? page + 1 : null;
+
+  return `
+    <nav aria-label="Navigazione pagine">
+      <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap">
+        <div class="mb-2 mb-md-0">
+          ${prevPage ? 
+            `<a href="/playlist/${encodeURIComponent(playlistId)}?view=album&page=${prevPage}" 
+               class="btn btn-primary">← Precedente</a>` : 
+            '<div></div>'
+          }
+        </div>
+        <div class="mb-2 mb-md-0">
+          <span class="page-info badge bg-light text-dark">
+            Pagina ${page} di ${totalPages}
+          </span>
+        </div>
+        <div>
+          ${nextPage ? 
+            `<a href="/playlist/${encodeURIComponent(playlistId)}?view=album&page=${nextPage}" 
+               class="btn btn-primary">Successivo →</a>` : 
+            '<div></div>'
+          }
+        </div>
+      </div>
+    </nav>
+  `;
+}
+
+// Generate complete HTML page
+function generatePlaylistHTML(playlist, playlistId, view, contentHtml) {
+  const playlistName = playlist.name?.trim() || 'Playlist senza nome';
+  const trackCount = playlist.tracks?.total || 0;
+
+  return `
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Playlist: ${escapeHtml(playlistName)}</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+      <link rel="stylesheet" href="/styles.css">
+      <style>
+        .card-img-top { 
+          height: 200px; 
+          object-fit: cover; 
+          transition: transform 0.2s ease-in-out;
+        }
+        .card:hover .card-img-top {
+          transform: scale(1.05);
+        }
+        .card-link:hover { 
+          text-decoration: none !important; 
+        }
+        .view-toggle .btn { 
+          margin: 0 5px; 
+          transition: all 0.2s ease-in-out;
+        }
+        .artist-card, .album-card {
+          transition: all 0.2s ease-in-out;
+          border: 1px solid #dee2e6;
+        }
+        .artist-card:hover, .album-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .text-truncate {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .page-info {
+          font-size: 0.9rem;
+          padding: 0.5rem 1rem;
+        }
+        @media (max-width: 768px) {
+          .view-toggle {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .view-toggle .btn {
+            margin: 0;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container mt-4">
+        <div class="mb-4 text-center">
+          <h1 class="display-6">${escapeHtml(playlistName)}</h1>
+          <p class="text-muted">
+            ${trackCount.toLocaleString('it-IT')} ${trackCount === 1 ? 'brano totale' : 'brani totali'}
+          </p>
+        </div>
+
+        <div class="view-toggle mb-4 text-center">
+          <a href="/playlist/${encodeURIComponent(playlistId)}?view=album" 
+             class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
+             📀 Album
+          </a>
+          <a href="/playlist/${encodeURIComponent(playlistId)}?view=artist" 
+             class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
+             🎤 Top Artisti
+          </a>
+        </div>
+
+        ${contentHtml}
+
+        <div class="text-center mt-5 mb-4">
+          <a href="/" class="btn btn-secondary btn-lg">← Torna alle playlist</a>
+        </div>
+      </div>
+
+      <script>
+        // Add loading states for better UX
+        document.addEventListener('DOMContentLoaded', function() {
+          const links = document.querySelectorAll('a[href^="/playlist/"], a[href^="/album/"]');
+          links.forEach(link => {
+            link.addEventListener('click', function(e) {
+              const btn = this.querySelector('.btn');
+              if (btn) {
+                btn.innerHTML += ' <span class="spinner-border spinner-border-sm ms-2" role="status"></span>';
+                btn.disabled = true;
+              }
+            });
+          });
+        });
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+// Enhanced error handling for playlist operations
+function handlePlaylistError(err, req, res) {
+  if (err.message === 'UNAUTHORIZED' || err.response?.status === 401) {
+    req.session.destroy();
+    return res.redirect('/start');
+  }
+  
+  if (err.response?.status === 404) {
+    return handleError(res, 'Playlist non trovata o non accessibile', 404);
+  }
+  
+  if (err.message === 'RATE_LIMITED' || err.response?.status === 429) {
+    return handleError(res, 'Troppe richieste. Riprova tra qualche minuto.', 429);
+  }
+  
+  if (err.response?.status === 403) {
+    return handleError(res, 'Accesso negato alla playlist. Verifica i permessi.', 403);
+  }
+  
+  if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+    return handleError(res, 'Errore di connessione. Riprova più tardi.', 503);
+  }
+  
+  // Generic server error
+  return handleError(res, 'Errore nel recuperare i dettagli della playlist. Riprova più tardi.', 500);
+}
 
 // Album detail view
 app.get('/album/:id', async (req, res) => {
