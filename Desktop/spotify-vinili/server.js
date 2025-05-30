@@ -419,32 +419,35 @@ app.get('/playlist/:id', async (req, res) => {
       }
 
       const artists = Array.from(artistsMap.values())
-      .map(artist => ({
-        ...artist,
-        image: artistImages.get(artist.id) || '/placeholder.png'
-      }))
-      .sort((a, b) => b.trackCount - a.trackCount)
-      .slice(0, 50); // Limita ai primi 50 artisti
+        .map(artist => ({
+          ...artist,
+          image: artistImages.get(artist.id) || '/placeholder.png'
+        }))
+        .sort((a, b) => b.trackCount - a.trackCount)
+        .slice(0, 50); // Limita ai primi 50 artisti
     
-    contentHtml = `
-      <h2 class="mb-4">Top 50 Artisti nella playlist (${artists.length})</h2>
-      <div class="row">
-        ${artists.map(artist => `
-          <div class="col-md-4 mb-4">
-            <div class="card h-100">
-              <img src="${escapeHtml(artist.image)}" 
-                   class="card-img-top" 
-                   alt="${escapeHtml(artist.name)}"
-                   onerror="this.src='/placeholder.png'">
-              <div class="card-body">
-                <h5 class="card-title">${escapeHtml(artist.name)}</h5>
-                <p class="card-text">${artist.trackCount} brani</p>
+      contentHtml = `
+        <h2 class="mb-4">Top 50 Artisti nella playlist (${artists.length})</h2>
+        <div class="row">
+          ${artists.map(artist => `
+            <div class="col-md-4 mb-4">
+              <div class="card h-100">
+                <img src="${escapeHtml(artist.image)}" 
+                     class="card-img-top" 
+                     alt="${escapeHtml(artist.name)}"
+                     onerror="this.src='/placeholder.png'"
+                     loading="lazy">
+                <div class="card-body">
+                  <h5 class="card-title">${escapeHtml(artist.name)}</h5>
+                  <p class="card-text">
+                    <span class="badge bg-primary">${artist.trackCount} brani</span>
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+          `).join('')}
+        </div>
+      `;
     } else {
       // Album view
       const albumsMap = new Map();
@@ -470,7 +473,7 @@ app.get('/playlist/:id', async (req, res) => {
         return {
           id: entry.album.id,
           name: entry.album.name,
-          artist: entry.album.artists.map(a => a.name).join(', '),
+          artist: entry.album.artists?.map(a => a.name).join(', ') || 'Artista sconosciuto',
           image: entry.album.images?.[0]?.url || '/placeholder.png',
           tracksPresent: entry.tracksInPlaylist.size,
           totalTracks: entry.totalTracks,
@@ -487,18 +490,19 @@ app.get('/playlist/:id', async (req, res) => {
           ${paginatedAlbums.map(album => `
             <div class="col-md-4 mb-4">
               <div class="card h-100">
-                <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
+                <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link text-decoration-none">
                   <img src="${escapeHtml(album.image)}" 
                        class="card-img-top" 
                        alt="${escapeHtml(album.name)}"
-                       onerror="this.src='/placeholder.png'">
+                       onerror="this.src='/placeholder.png'"
+                       loading="lazy">
                   <div class="card-body">
-                    <h5 class="card-title">${escapeHtml(album.name)}</h5>
+                    <h5 class="card-title text-dark">${escapeHtml(album.name)}</h5>
                     <p class="card-text">
                       <small class="text-muted">${escapeHtml(album.artist)}</small>
                     </p>
                     <p class="card-text">
-                      <span class="badge ${album.percentage >= 0 ? 'bg-warning' : 'bg-secondary'}">
+                      <span class="badge ${album.percentage >= 50 ? 'bg-success' : album.percentage >= 25 ? 'bg-warning' : 'bg-secondary'}">
                         ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
                       </span>
                     </p>
@@ -510,11 +514,19 @@ app.get('/playlist/:id', async (req, res) => {
         </div>
         
         ${totalPages > 1 ? `
-          <div class="pagination">
-            ${page > 1 ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">« Precedente</a>` : ''}
-            <span class="page-info">Pagina ${page} di ${totalPages}</span>
-            ${page < totalPages ? `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
-          </div>
+          <nav aria-label="Navigazione pagine">
+            <div class="d-flex justify-content-between align-items-center mt-4">
+              ${page > 1 ? 
+                `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page - 1}" class="btn btn-primary">« Precedente</a>` : 
+                '<span></span>'
+              }
+              <span class="page-info">Pagina ${page} di ${totalPages}</span>
+              ${page < totalPages ? 
+                `<a href="/playlist/${escapeHtml(playlistId)}?view=album&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : 
+                '<span></span>'
+              }
+            </div>
+          </nav>
         ` : ''}
       `;
     }
@@ -526,9 +538,22 @@ app.get('/playlist/:id', async (req, res) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Playlist: ${escapeHtml(playlist.name)}</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="/styles.css">
+        <style>
+          .card-img-top { height: 200px; object-fit: cover; }
+          .card-link:hover { text-decoration: none !important; }
+          .view-toggle .btn { margin: 0 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container mt-4">
+          <div class="mb-4">
+            <h1>${escapeHtml(playlist.name)}</h1>
+            <p class="text-muted">${playlist.tracks?.total || 0} brani totali</p>
+          </div>
 
-          <div class="view-toggle" style="margin-bottom: 2rem;">
+          <div class="view-toggle mb-4 text-center">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
                class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
                Album
@@ -541,7 +566,7 @@ app.get('/playlist/:id', async (req, res) => {
 
           ${contentHtml}
 
-          <div class="text-center mt-4">
+          <div class="text-center mt-5">
             <a href="/" class="btn btn-secondary">← Torna alle playlist</a>
           </div>
         </div>
