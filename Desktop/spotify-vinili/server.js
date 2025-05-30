@@ -427,7 +427,7 @@ app.get('/playlist/:id', async (req, res) => {
       .slice(0, 50); // Limita ai primi 50 artisti
     
     contentHtml = `
-      <h2 class="mb-4">Top 50 Artisti nella playlist (${artists.length})</h2>
+      <h2 class="mb-4">Top 50 Artisti nella playlist</h2>
       <div class="row">
         ${artists.map(artist => `
           <div class="col-md-4 mb-4">
