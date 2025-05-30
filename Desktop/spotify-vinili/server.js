@@ -550,7 +550,7 @@ app.get('/playlist/:id', async (req, res) => {
         <div class="container mt-4">
           <div class="mb-4">
             <h1>${escapeHtml(playlist.name)}</h1>
-            <p class="text-muted">${playlist.tracks?.total || 0} brani totali</p>
+            <p class="text-muted text-center">${playlist.tracks?.total || 0} brani totali</p>
           </div>
 
           <div class="view-toggle mb-4 text-center">
