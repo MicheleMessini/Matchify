@@ -537,8 +537,8 @@ app.get('/playlist/:id', async (req, res) => {
                  onerror="this.src='/placeholder.png'">
             <div>
               <h1 style="margin: 0;">${escapeHtml(playlist.name)}</h1>
-              <p style="margin: 0; color: #666;">
-                di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} • 
+              <p style="margin: 0">
+                di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} - 
                 ${playlist.tracks?.total || 0} tracce
               </p>
             </div>
