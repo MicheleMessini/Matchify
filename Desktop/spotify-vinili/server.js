@@ -306,7 +306,7 @@ app.get('/', async (req, res) => {
                         <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
                         <p class="card-text">
                           <small class="text-muted">
-                            ${playlist.tracks?.total || 0} tracce • 
+                            ${playlist.tracks?.total || 0} tracce - 
                             ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}
                           </small>
                         </p>
@@ -498,7 +498,7 @@ app.get('/playlist/:id', async (req, res) => {
                       <small class="text-muted">${escapeHtml(album.artist)}</small>
                     </p>
                     <p class="card-text">
-                      <span class="badge ${album.percentage >= 80 ? 'bg-success' : album.percentage >= 50 ? 'bg-warning' : 'bg-secondary'}">
+                      <span class="badge ${album.percentage >= 0 ? 'bg-warning' : 'bg-secondary'}">
                         ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
                       </span>
                     </p>
@@ -547,11 +547,11 @@ app.get('/playlist/:id', async (req, res) => {
           <div class="view-toggle" style="margin-bottom: 2rem;">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
                class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               Vista Album
+               Album
             </a>
             <a href="/playlist/${escapeHtml(playlistId)}?view=artist" 
                class="btn ${view === 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
-               Vista Artisti
+               Top Artisti
             </a>
           </div>
 
