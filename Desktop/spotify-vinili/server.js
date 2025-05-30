@@ -527,22 +527,6 @@ app.get('/playlist/:id', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Playlist: ${escapeHtml(playlist.name)}</title>
         <link rel="stylesheet" href="/styles.css">
-      </head>
-      <body>
-        <div class="container">
-          <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-            <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
-                 alt="${escapeHtml(playlist.name)}" 
-                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 1rem;"
-                 onerror="this.src='/placeholder.png'">
-            <div>
-              <h1 style="margin: 0;">${escapeHtml(playlist.name)}</h1>
-              <p style="margin: 0; color: #666;">
-                di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} • 
-                ${playlist.tracks?.total || 0} tracce
-              </p>
-            </div>
-          </div>
 
           <div class="view-toggle" style="margin-bottom: 2rem;">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
