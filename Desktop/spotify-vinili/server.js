@@ -384,7 +384,7 @@ app.get('/playlist/:id', async (req, res) => {
   const accessToken = req.session.accessToken;
   const view = req.query.view === 'artist' ? 'artist' : 'album';
   const page = validatePageNumber(req.query.page);
-  const perPage = 15;
+  const perPage = 16;
 
   try {
     // Get playlist info
