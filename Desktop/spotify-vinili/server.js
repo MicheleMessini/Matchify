@@ -238,30 +238,68 @@ app.use(requireAuth);
 app.get('/', async (req, res) => {
   const accessToken = req.session.accessToken;
   const page = validatePageNumber(req.query.page);
-  const sortBy = req.query.sort === 'name' ? 'name' : 'tracks';
   
   try {
     // Get all user playlists
     let playlists = [];
     let nextUrl = 'https://api.spotify.com/v1/me/playlists?limit=50';
-
     while (nextUrl) {
       const data = await makeSpotifyRequest(nextUrl, accessToken);
       playlists.push(...data.items.filter(p => p && p.id)); // Filter out null/invalid playlists
       nextUrl = data.next;
     }
 
-    // Sort playlists
-    if (sortBy === 'name') {
-      playlists.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      playlists.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
-    }
+    // Get detailed info for each playlist including tracks duration
+    const playlistsWithDuration = await Promise.all(
+      playlists.map(async (playlist) => {
+        try {
+          let totalDuration = 0;
+          let tracksUrl = `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=50&fields=items(track(duration_ms)),next`;
+          
+          while (tracksUrl) {
+            const tracksData = await makeSpotifyRequest(tracksUrl, accessToken);
+            if (tracksData.items) {
+              totalDuration += tracksData.items.reduce((sum, item) => {
+                return sum + (item.track?.duration_ms || 0);
+              }, 0);
+            }
+            tracksUrl = tracksData.next;
+          }
+          
+          return {
+            ...playlist,
+            totalDuration: totalDuration
+          };
+        } catch (error) {
+          console.warn(`Error fetching tracks for playlist ${playlist.id}:`, error.message);
+          return {
+            ...playlist,
+            totalDuration: 0
+          };
+        }
+      })
+    );
+
+    // Sort playlists by tracks (default sorting)
+    playlistsWithDuration.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
 
     // Pagination
     const perPage = 6;
-    const totalPages = Math.ceil(playlists.length / perPage);
-    const paginatedPlaylists = playlists.slice((page - 1) * perPage, page * perPage);
+    const totalPages = Math.ceil(playlistsWithDuration.length / perPage);
+    const paginatedPlaylists = playlistsWithDuration.slice((page - 1) * perPage, page * perPage);
+
+    // Helper function to format duration
+    const formatDuration = (milliseconds) => {
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      } else {
+        return `${minutes}m`;
+      }
+    };
 
     const html = `
       <!DOCTYPE html>
@@ -276,19 +314,9 @@ app.get('/', async (req, res) => {
         <div class="container">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <h1>Le tue Playlist</h1>
-            <div>
-              <a href="/?sort=tracks${page > 1 ? '&page=' + page : ''}" 
-                 class="btn ${sortBy === 'tracks' ? 'btn-primary' : 'btn-outline-secondary'}" style="margin-right: 0.5rem;">
-                 Per Tracce
-              </a>
-              <a href="/?sort=name${page > 1 ? '&page=' + page : ''}" 
-                 class="btn ${sortBy === 'name' ? 'btn-primary' : 'btn-outline-secondary'}">
-                 Per Nome
-              </a>
-            </div>
           </div>
           
-          ${playlists.length === 0 ? `
+          ${playlistsWithDuration.length === 0 ? `
             <div class="text-center">
               <p>Non hai ancora nessuna playlist. Creane una su Spotify!</p>
             </div>
@@ -306,8 +334,9 @@ app.get('/', async (req, res) => {
                         <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
                         <p class="card-text">
                           <small class="text-muted">
+                            ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} - 
                             ${playlist.tracks?.total || 0} tracce - 
-                            ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}
+                            ${formatDuration(playlist.totalDuration)}
                           </small>
                         </p>
                       </div>
@@ -320,9 +349,9 @@ app.get('/', async (req, res) => {
           
           ${totalPages > 1 ? `
             <div class="pagination">
-              ${page > 1 ? `<a href="/?sort=${sortBy}&page=${page - 1}" class="btn btn-primary">« Precedente</a>` : ''}
+              ${page > 1 ? `<a href="/?page=${page - 1}" class="btn btn-primary">« Precedente</a>` : ''}
               <span class="page-info">Pagina ${page} di ${totalPages}</span>
-              ${page < totalPages ? `<a href="/?sort=${sortBy}&page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
+              ${page < totalPages ? `<a href="/?page=${page + 1}" class="btn btn-primary">Successivo »</a>` : ''}
             </div>
           ` : ''}
         </div>
@@ -529,21 +558,6 @@ app.get('/playlist/:id', async (req, res) => {
         <link rel="stylesheet" href="/styles.css">
       </head>
       <body>
-        <div class="container">
-          <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-            <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
-                 alt="${escapeHtml(playlist.name)}" 
-                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 1rem;"
-                 onerror="this.src='/placeholder.png'">
-            <div>
-              <h1 style="margin: 0;">${escapeHtml(playlist.name)}</h1>
-              <p style="margin: 0">
-                di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} - 
-                ${playlist.tracks?.total || 0} tracce
-              </p>
-            </div>
-          </div>
-
           <div class="view-toggle" style="margin-bottom: 2rem;">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
                class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
