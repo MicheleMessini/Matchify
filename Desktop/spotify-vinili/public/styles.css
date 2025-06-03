@@ -213,7 +213,7 @@ p {
   max-width: 65ch;
 }
 
-/* Enhanced Links */
+/* Enhanced Links - Removed underlines */
 a {
   color: var(--primary);
   text-decoration: none;
@@ -233,6 +233,8 @@ a:focus {
   border-radius: var(--radius-sm);
 }
 
+/* Removed the underline effect on links */
+/* 
 a::after {
   content: '';
   position: absolute;
@@ -248,6 +250,7 @@ a::after {
 a:hover::after {
   width: 100%;
 }
+*/
 
 /* Enhanced Layout Container */
 .container {
