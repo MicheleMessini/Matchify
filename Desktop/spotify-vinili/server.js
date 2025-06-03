@@ -594,51 +594,6 @@ app.get('/playlist/:id', async (req, res) => {
         <link rel="stylesheet" href="/styles.css">
       </head>
       <body>
-        <div class="container">
-          <!-- Playlist Header with Stats -->
-          <div class="playlist-header mb-4">
-            <div class="row align-items-center">
-              <div class="col-md-3">
-                <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
-                     alt="${escapeHtml(playlist.name)}" 
-                     class="playlist-cover img-fluid rounded"
-                     onerror="this.src='/placeholder.png'">
-              </div>
-              <div class="col-md-9">
-                <h1 class="playlist-title">${escapeHtml(playlist.name)}</h1>
-                ${playlist.description ? `<p class="playlist-description text-muted">${escapeHtml(playlist.description)}</p>` : ''}
-                <div class="playlist-stats">
-                  <div class="row">
-                    <div class="col-6 col-md-3">
-                      <div class="stat-item">
-                        <div class="stat-number">${totalTracks}</div>
-                        <div class="stat-label">Brani</div>
-                      </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                      <div class="stat-item">
-                        <div class="stat-number">${durationText}</div>
-                        <div class="stat-label">Durata</div>
-                      </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                      <div class="stat-item">
-                        <div class="stat-number">${uniqueArtists.size}</div>
-                        <div class="stat-label">Artisti</div>
-                      </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                      <div class="stat-item">
-                        <div class="stat-number">${uniqueAlbums.size}</div>
-                        <div class="stat-label">Album</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div class="view-toggle" style="margin-bottom: 2rem;">
             <a href="/playlist/${escapeHtml(playlistId)}?view=album" 
                class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-outline-secondary'}">
@@ -656,69 +611,6 @@ app.get('/playlist/:id', async (req, res) => {
             <a href="/" class="btn btn-secondary">← Torna alle playlist</a>
           </div>
         </div>
-
-        <style>
-          .playlist-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-          }
-          
-          .playlist-cover {
-            max-width: 200px;
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-          }
-          
-          .playlist-title {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-          }
-          
-          .playlist-description {
-            font-size: 1.1rem;
-            margin-bottom: 1.5rem;
-            opacity: 0.9;
-          }
-          
-          .playlist-stats {
-            background: rgba(255,255,255,0.1);
-            padding: 1.5rem;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-          }
-          
-          .stat-item {
-            text-align: center;
-            margin-bottom: 1rem;
-          }
-          
-          .stat-number {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #fff;
-          }
-          
-          .stat-label {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            opacity: 0.8;
-          }
-          
-          @media (max-width: 768px) {
-            .playlist-title {
-              font-size: 1.8rem;
-            }
-            
-            .stat-number {
-              font-size: 1.4rem;
-            }
-          }
-        </style>
       </body>
       </html>
     `;
@@ -817,7 +709,7 @@ app.get('/album/:id', async (req, res) => {
               <p><strong>Durata totale:</strong> ${totalDuration}</p>
               ${playlistId ? `
                 <div>
-                  <span class="badge ${completionPercentage >= 80 ? 'bg-success' : completionPercentage >= 50 ? 'bg-warning' : 'bg-secondary'}">
+                  <span class="badge ${completionPercentage >= 50 ? 'bg-success' : completionPercentage >= 25 ? 'bg-warning' : 'bg-secondary'}">
                     ${tracksInPlaylist}/${album.total_tracks} nella playlist (${completionPercentage}%)
                   </span>
                 </div>
@@ -844,8 +736,8 @@ app.get('/album/:id', async (req, res) => {
                     <span class="track-name">${escapeHtml(track.name)}</span>
                   </div>
                   <div class="track-details">
-                    <span class="track-duration">${duration}</span>
                     <span class="track-popularity">Popolarità: ${popularity}/100</span>
+                    <span class="track-duration">${duration}</span>
                     <span class="track-status">${isInPlaylist ? 'In playlist' : 'Non presente'}</span>
                   </div>
                 </li>
