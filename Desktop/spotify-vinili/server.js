@@ -613,29 +613,31 @@ app.get('/playlist/:id', async (req, res) => {
       contentHtml = `
         <h2 class="mb-4">Album nella playlist (${albums.length})</h2>
         <div class="row">
-          ${paginatedAlbums.map(album => `
-            <div class="col-md-4 mb-4">
-              <div class="card h-100">
-                <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link">
-                  <img src="${escapeHtml(album.image)}" 
-                       class="card-img-top" 
-                       alt="${escapeHtml(album.name)}"
-                       onerror="this.src='/placeholder.png'">
-                  <div class="card-body">
-                    <h5 class="card-title">${escapeHtml(album.name)}</h5>
-                    <p class="card-text">
-                      <small class="text-muted">${escapeHtml(album.artist)}</small>
-                    </p>
-                    <p class="card-text">
-                      <span class="badge ${album.percentage >= 50 ? 'bg-success' : album.percentage >= 25 ? 'bg-warning' : 'bg-secondary'}">
-                        ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
-                      </span>
-                    </p>
-                  </div>
-                </a>
-              </div>
+        ${paginatedAlbums.map(album => `
+          <div class="col-md-4 mb-4">
+            <div class="card h-100">
+              <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" 
+                 class="card-link">
+                <img src="${escapeHtml(album.image)}" 
+                     class="card-img-top" 
+                     alt="${escapeHtml(album.name)}"
+                     onerror="this.src='/placeholder.png'">
+                <div class="card-body">
+                  <h5 class="card-title">${escapeHtml(album.name)}</h5>
+                  <p class="card-text">
+                    <small class="text-muted">${escapeHtml(album.artist)}</small>
+                  </p>
+                  <p class="card-text">
+                    <span class="badge ${album.percentage >= 50 ? 'bg-success' : 
+                                         album.percentage >= 25 ? 'bg-warning' : 'bg-secondary'}">
+                      ${album.tracksPresent}/${album.totalTracks} (${album.percentage}%)
+                    </span>
+                  </p>
+                </div>
+              </a>
             </div>
-          `).join('')}
+          </div>
+        `).join('')}
         </div>
         
         ${totalPages > 1 ? `
