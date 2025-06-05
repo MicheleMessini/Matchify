@@ -276,8 +276,6 @@ app.get('/', async (req, res) => {
         let totalTracks = 0;
         let tracksUrl = `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=50&fields=items(track(duration_ms,name)),next,total`;
         
-        console.log(`Calculating duration for playlist: ${playlist.name}`);
-        
         while (tracksUrl) {
           const tracksData = await makeSpotifyRequest(tracksUrl, accessToken);
           
@@ -295,8 +293,6 @@ app.get('/', async (req, res) => {
           // Add small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        
-        console.log(`Playlist ${playlist.name}: ${totalTracks} tracks, ${totalDuration}ms total`);
         
         return {
           ...playlist,
@@ -402,7 +398,7 @@ app.get('/', async (req, res) => {
                           <p class="card-text">
                             <small class="text-muted">
                               ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} <br>
-                              ${trackCount} tracce${calculatedTracks !== trackCount && !hasError ? ` (${calculatedTracks} calcolate)` : ''} <br>
+                              ${trackCount} tracce <br>
                               ${durationText}
                             </small>
                           </p>
@@ -806,7 +802,7 @@ app.get('/album/:id', async (req, res) => {
                   <div class="track-details">
                     <span class="track-popularity">Popolarità: ${popularity}/100</span>
                     <span class="track-duration">${duration}</span>
-                    <span class="track-status">${isInPlaylist ? 'In playlist' : 'Non presente'}</span>
+                    <span class="track-status">${isInPlaylist ? '✔️' : '❌'}</span>
                   </div>
                 </li>
               `;
