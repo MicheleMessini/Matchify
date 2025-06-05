@@ -374,7 +374,7 @@ a {
     padding: 20px;
     text-align: center;
     color: var(--spotify-green);
-    margin: 20px 0;
+    margin: 20px 10px;
 }
 
 /* Utility classes */
