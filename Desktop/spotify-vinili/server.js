@@ -249,36 +249,87 @@ app.get('/', async (req, res) => {
       nextUrl = data.next;
     }
 
-    // Get detailed info for each playlist including tracks duration
-    const playlistsWithDuration = await Promise.all(
-      playlists.map(async (playlist) => {
-        try {
-          let totalDuration = 0;
-          let tracksUrl = `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=50&fields=items(track(duration_ms)),next`;
+    // Helper function to format duration with better precision
+    const formatDuration = (milliseconds) => {
+      if (!milliseconds || milliseconds === 0) {
+        return '0m';
+      }
+      
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      } else if (minutes > 0) {
+        return `${minutes}m`;
+      } else {
+        return `${seconds}s`;
+      }
+    };
+
+    // Function to calculate playlist duration with better error handling
+    const calculatePlaylistDuration = async (playlist) => {
+      try {
+        let totalDuration = 0;
+        let totalTracks = 0;
+        let tracksUrl = `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=50&fields=items(track(duration_ms,name)),next,total`;
+        
+        console.log(`Calculating duration for playlist: ${playlist.name}`);
+        
+        while (tracksUrl) {
+          const tracksData = await makeSpotifyRequest(tracksUrl, accessToken);
           
-          while (tracksUrl) {
-            const tracksData = await makeSpotifyRequest(tracksUrl, accessToken);
-            if (tracksData.items) {
-              totalDuration += tracksData.items.reduce((sum, item) => {
-                return sum + (item.track?.duration_ms || 0);
-              }, 0);
+          if (tracksData.items && Array.isArray(tracksData.items)) {
+            for (const item of tracksData.items) {
+              if (item && item.track && item.track.duration_ms) {
+                totalDuration += item.track.duration_ms;
+                totalTracks++;
+              }
             }
-            tracksUrl = tracksData.next;
           }
           
-          return {
-            ...playlist,
-            totalDuration: totalDuration
-          };
-        } catch (error) {
-          console.warn(`Error fetching tracks for playlist ${playlist.id}:`, error.message);
-          return {
-            ...playlist,
-            totalDuration: 0
-          };
+          tracksUrl = tracksData.next;
+          
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-      })
-    );
+        
+        console.log(`Playlist ${playlist.name}: ${totalTracks} tracks, ${totalDuration}ms total`);
+        
+        return {
+          ...playlist,
+          totalDuration: totalDuration,
+          calculatedTracks: totalTracks
+        };
+      } catch (error) {
+        console.warn(`Error fetching tracks for playlist ${playlist.name} (${playlist.id}):`, error.message);
+        return {
+          ...playlist,
+          totalDuration: 0,
+          calculatedTracks: 0,
+          error: true
+        };
+      }
+    };
+
+    // Get detailed info for each playlist with better concurrency control
+    const batchSize = 5; // Process 5 playlists at a time to avoid rate limiting
+    const playlistsWithDuration = [];
+    
+    for (let i = 0; i < playlists.length; i += batchSize) {
+      const batch = playlists.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(playlist => calculatePlaylistDuration(playlist))
+      );
+      playlistsWithDuration.push(...batchResults);
+      
+      // Small delay between batches
+      if (i + batchSize < playlists.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
 
     // Sort playlists by tracks (default sorting)
     playlistsWithDuration.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
@@ -288,19 +339,6 @@ app.get('/', async (req, res) => {
     const totalPages = Math.ceil(playlistsWithDuration.length / perPage);
     const paginatedPlaylists = playlistsWithDuration.slice((page - 1) * perPage, page * perPage);
 
-    // Helper function to format duration
-    const formatDuration = (milliseconds) => {
-      const totalSeconds = Math.floor(milliseconds / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      } else {
-        return `${minutes}m`;
-      }
-    };
-
     const html = `
       <!DOCTYPE html>
       <html lang="it">
@@ -309,6 +347,20 @@ app.get('/', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Le tue Playlist Spotify</title>
         <link rel="stylesheet" href="/styles.css">
+        <style>
+          .duration-info {
+            color: #666;
+            font-size: 0.85em;
+          }
+          .duration-error {
+            color: #dc3545;
+            font-style: italic;
+          }
+          .duration-loading {
+            color: #6c757d;
+            font-style: italic;
+          }
+        </style>
       </head>
       <body>
         <div class="container">
@@ -322,28 +374,44 @@ app.get('/', async (req, res) => {
             </div>
           ` : `
             <div class="row">
-              ${paginatedPlaylists.map(playlist => `
-                <div class="col-md-4">
-                  <div class="card">
-                    <a href="/playlist/${escapeHtml(playlist.id)}" class="card-link">
-                      <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
-                           alt="${escapeHtml(playlist.name)}" 
-                           class="card-img-top"
-                           onerror="this.src='/placeholder.png'">
-                      <div class="card-body">
-                        <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
-                        <p class="card-text">
-                          <small class="text-muted">
-                            ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} - 
-                            ${playlist.tracks?.total || 0} tracce - 
-                            ${formatDuration(playlist.totalDuration)}
-                          </small>
-                        </p>
-                      </div>
-                    </a>
+              ${paginatedPlaylists.map(playlist => {
+                const trackCount = playlist.tracks?.total || 0;
+                const calculatedTracks = playlist.calculatedTracks || 0;
+                const duration = playlist.totalDuration || 0;
+                const hasError = playlist.error;
+                
+                let durationText;
+                if (hasError) {
+                  durationText = '<span class="duration-error">Durata non disponibile</span>';
+                } else if (duration === 0 && trackCount > 0) {
+                  durationText = '<span class="duration-loading">Calcolo durata...</span>';
+                } else {
+                  durationText = `<span class="duration-info">${formatDuration(duration)}</span>`;
+                }
+                
+                return `
+                  <div class="col-md-4">
+                    <div class="card">
+                      <a href="/playlist/${escapeHtml(playlist.id)}" class="card-link">
+                        <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
+                             alt="${escapeHtml(playlist.name)}" 
+                             class="card-img-top"
+                             onerror="this.src='/placeholder.png'">
+                        <div class="card-body">
+                          <h5 class="card-title">${escapeHtml(playlist.name)}</h5>
+                          <p class="card-text">
+                            <small class="text-muted">
+                              ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} <br>
+                              ${trackCount} tracce${calculatedTracks !== trackCount && !hasError ? ` (${calculatedTracks} calcolate)` : ''} <br>
+                              ${durationText}
+                            </small>
+                          </p>
+                        </div>
+                      </a>
+                    </div>
                   </div>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           `}
           
