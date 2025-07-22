@@ -2,11 +2,14 @@ const express = require('express');
 const { makeSpotifyRequest } = require('../services/spotifyService');
 const { escapeHtml, validatePageNumber, validatePlaylistId, validateAlbumId, handleError } = require('../utils/helpers');
 const router = express.Router();
+const NodeCache = require('node-cache');
+
+// --- NUOVO: Inizializzazione della Cache ---
+// I dati verranno conservati per 15 minuti (900 secondi)
+const appCache = new NodeCache({ stdTTL: 900 });
 
 // Constants
-const PLAYLIST_BATCH_SIZE = 5;
 const PLAYLIST_RATE_LIMIT_DELAY = 100;
-const BATCH_DELAY = 200;
 const PLAYLISTS_PER_PAGE = 6;
 const ALBUMS_PER_PAGE = 12;
 const MAX_ARTISTS_DISPLAYED = 50;
@@ -18,11 +21,10 @@ const formatDuration = (milliseconds) => {
   const totalSeconds = Math.floor(milliseconds / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
   
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
-  return `${seconds}s`;
+  return `${Math.floor(totalSeconds % 60)}s`;
 };
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -45,29 +47,34 @@ const fetchAllPlaylistTracks = async (playlistId, accessToken) => {
   return tracks;
 };
 
+// --- MODIFICATO: Funzione con cache ---
 const calculatePlaylistDuration = async (playlist, accessToken) => {
+  const cacheKey = `duration:${playlist.id}`;
+  const cachedResult = appCache.get(cacheKey);
+  if (cachedResult) {
+    return cachedResult; // Restituisce il risultato dalla cache se presente
+  }
+
   try {
     const tracks = await fetchAllPlaylistTracks(playlist.id, accessToken);
     const totalDuration = tracks.reduce((sum, item) => sum + item.track.duration_ms, 0);
     
-    return {
+    const result = {
       ...playlist,
       totalDuration,
       calculatedTracks: tracks.length,
       error: false
     };
+    appCache.set(cacheKey, result); // Salva il risultato in cache
+    return result;
   } catch (error) {
     console.warn(`Error calculating duration for playlist ${playlist.name}:`, error.message);
-    return {
-      ...playlist,
-      totalDuration: 0,
-      calculatedTracks: 0,
-      error: true
-    };
+    return { ...playlist, totalDuration: 0, calculatedTracks: 0, error: true };
   }
 };
 
 const fetchAllPlaylists = async (accessToken) => {
+  // Anche qui si potrebbe aggiungere una cache per utente se si avesse l'ID utente
   let playlists = [];
   let nextUrl = 'https://api.spotify.com/v1/me/playlists?limit=50';
   
@@ -80,41 +87,15 @@ const fetchAllPlaylists = async (accessToken) => {
   return playlists;
 };
 
-const processPlaylistsInBatches = async (playlists, accessToken) => {
-  const playlistsWithDuration = [];
-  
-  for (let i = 0; i < playlists.length; i += PLAYLIST_BATCH_SIZE) {
-    const batch = playlists.slice(i, i + PLAYLIST_BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map(playlist => calculatePlaylistDuration(playlist, accessToken))
-    );
-    playlistsWithDuration.push(...batchResults);
-    
-    if (i + PLAYLIST_BATCH_SIZE < playlists.length) {
-      await delay(BATCH_DELAY);
-    }
-  }
-  
-  return playlistsWithDuration;
-};
+// --- ELIMINATA LA NECESSITÀ di processPlaylistsInBatches sulla rotta principale ---
 
+// --- MODIFICATO: `renderPlaylistCard` ora ha un placeholder e un data-attribute ---
 const renderPlaylistCard = (playlist) => {
   const trackCount = playlist.tracks?.total || 0;
-  const duration = playlist.totalDuration || 0;
-  const hasError = playlist.error;
-  
-  let durationText;
-  if (hasError) {
-    durationText = '<span class="duration-error">Durata non disponibile</span>';
-  } else if (duration === 0 && trackCount > 0) {
-    durationText = '<span class="duration-loading">Calcolo durata...</span>';
-  } else {
-    durationText = `<span class="duration-info">${formatDuration(duration)}</span>`;
-  }
   
   return `
-    <div class="col-md-4">
-      <div class="card">
+    <div class="col-md-4 mb-4" data-playlist-id="${escapeHtml(playlist.id)}">
+      <div class="card h-100">
         <a href="/playlist/${escapeHtml(playlist.id)}" class="card-link">
           <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
                alt="${escapeHtml(playlist.name)}" 
@@ -126,7 +107,7 @@ const renderPlaylistCard = (playlist) => {
               <small class="text-muted">
                 ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} <br>
                 ${trackCount} tracce <br>
-                ${durationText}
+                <span class="duration-text duration-loading">Calcolo durata...</span>
               </small>
             </p>
           </div>
@@ -135,6 +116,7 @@ const renderPlaylistCard = (playlist) => {
     </div>
   `;
 };
+
 
 const renderPagination = (currentPage, totalPages, baseUrl) => {
   if (totalPages <= 1) return '';
@@ -148,7 +130,7 @@ const renderPagination = (currentPage, totalPages, baseUrl) => {
   `;
 };
 
-// Main playlist view
+// --- MODIFICATO: La vista principale ora carica istantaneamente ---
 router.get('/', async (req, res) => {
   const accessToken = req.session.accessToken;
   if (!accessToken) {
@@ -159,14 +141,11 @@ router.get('/', async (req, res) => {
   
   try {
     const playlists = await fetchAllPlaylists(accessToken);
-    const playlistsWithDuration = await processPlaylistsInBatches(playlists, accessToken);
     
-    // Sort by track count (descending)
-    playlistsWithDuration.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
+    playlists.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
 
-    // Pagination
-    const totalPages = Math.ceil(playlistsWithDuration.length / PLAYLISTS_PER_PAGE);
-    const paginatedPlaylists = playlistsWithDuration.slice(
+    const totalPages = Math.ceil(playlists.length / PLAYLISTS_PER_PAGE);
+    const paginatedPlaylists = playlists.slice(
       (page - 1) * PLAYLISTS_PER_PAGE, 
       page * PLAYLISTS_PER_PAGE
     );
@@ -190,10 +169,10 @@ router.get('/', async (req, res) => {
         <div class="container">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <h1>Le tue Playlist</h1>
-            <span class="badge bg-info">${playlistsWithDuration.length} playlist totali</span>
+            <span class="badge bg-info">${playlists.length} playlist totali</span>
           </div>
           
-          ${playlistsWithDuration.length === 0 ? `
+          ${playlists.length === 0 ? `
             <div class="text-center">
               <p>Non hai ancora nessuna playlist. Creane una su Spotify!</p>
               <a href="/start" class="btn btn-primary">Ricarica</a>
@@ -206,6 +185,39 @@ router.get('/', async (req, res) => {
           
           ${renderPagination(page, totalPages, '/?')}
         </div>
+
+        <!-- NUOVO: Script per caricare le durate asincronamente -->
+        <script>
+          document.addEventListener('DOMContentLoaded', () => {
+            const playlistCards = document.querySelectorAll('[data-playlist-id]');
+    
+            playlistCards.forEach(card => {
+              const playlistId = card.dataset.playlistId;
+              const durationElement = card.querySelector('.duration-text');
+    
+              fetch('/api/duration/' + playlistId)
+                .then(response => {
+                  if (!response.ok) throw new Error('API Response not OK');
+                  return response.json();
+                })
+                .then(data => {
+                  if (data && data.durationText) {
+                    durationElement.textContent = data.durationText;
+                    durationElement.classList.remove('duration-loading');
+                    durationElement.classList.add('duration-info');
+                  } else {
+                    throw new Error('Invalid data format');
+                  }
+                })
+                .catch(error => {
+                  console.warn('Could not fetch duration for ' + playlistId, error);
+                  durationElement.textContent = 'Durata non disp.';
+                  durationElement.classList.remove('duration-loading');
+                  durationElement.classList.add('duration-error');
+                });
+            });
+          });
+        </script>
       </body>
       </html>
     `;
@@ -214,8 +226,7 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Error fetching playlists:', err.message);
     if (err.message === 'UNAUTHORIZED') {
-      req.session.destroy();
-      return res.redirect('/start');
+      req.session.destroy(); return res.redirect('/start');
     }
     if (err.message === 'RATE_LIMITED') {
       return handleError(res, 'Troppe richieste. Riprova tra qualche minuto.', 429);
@@ -224,8 +235,42 @@ router.get('/', async (req, res) => {
   }
 });
 
+// --- NUOVA ROTTA API ---
+// Questa rotta viene chiamata dallo script frontend per ogni playlist.
+router.get('/api/duration/:playlistId', async (req, res) => {
+    try {
+        const accessToken = req.session.accessToken;
+        if (!accessToken) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { playlistId } = req.params;
+        if (!validatePlaylistId(playlistId)) {
+            return res.status(400).json({ error: 'Invalid Playlist ID' });
+        }
+
+        // Crea un oggetto 'stub' per la funzione, che ora è arricchita con cache
+        const playlistStub = { id: playlistId };
+        const result = await calculatePlaylistDuration(playlistStub, accessToken);
+
+        if (result.error) {
+            throw new Error('Calculation failed');
+        }
+        
+        // Restituisce la durata formattata in JSON
+        res.json({ durationText: formatDuration(result.totalDuration) });
+
+    } catch (error) {
+        console.warn(`API error for duration on ${req.params.playlistId}:`, error.message);
+        res.status(500).json({ error: 'Could not calculate duration' });
+    }
+});
+
+
+// Il resto del file (pagine di dettaglio) rimane invariato
 // Playlist detail view
 router.get('/playlist/:id', async (req, res) => {
+  // ... NESSUNA MODIFICA A QUESTA ROTTA ...
   const playlistId = req.params.id;
   
   if (!validatePlaylistId(playlistId)) {
@@ -481,8 +526,10 @@ router.get('/playlist/:id', async (req, res) => {
   }
 });
 
+
 // Album detail view
 router.get('/album/:id', async (req, res) => {
+  // ... NESSUNA MODIFICA A QUESTA ROTTA ...
   const albumId = req.params.id;
   
   if (!validateAlbumId(albumId)) {
@@ -618,5 +665,6 @@ router.get('/album/:id', async (req, res) => {
     handleError(res, 'Errore nel recupero dei dettagli dell\'album');
   }
 });
+
 
 module.exports = router;
