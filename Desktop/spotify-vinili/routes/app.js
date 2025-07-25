@@ -169,7 +169,6 @@ router.get('/', async (req, res) => {
         <div class="container">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <h1>Le tue Playlist</h1>
-            <span class="badge bg-info">${playlists.length} playlist totali</span>
           </div>
           
           ${playlists.length === 0 ? `
