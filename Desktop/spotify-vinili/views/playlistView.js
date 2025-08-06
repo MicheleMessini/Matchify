@@ -1,4 +1,5 @@
-const { escapeHtml, renderPagination, formatDuration, ALBUMS_PER_PAGE, MAX_ARTISTS_DISPLAYED } = require('./helpers');
+// CORREZIONE APPLICATA QUI: il percorso ora punta alla cartella /utils
+const { escapeHtml, renderPagination, formatDuration, ALBUMS_PER_PAGE, MAX_ARTISTS_DISPLAYED } = require('../utils/helpers');
 
 // =================================================================
 // --- Componenti di UI Riutilizzabili (Sub-Viste) ---
