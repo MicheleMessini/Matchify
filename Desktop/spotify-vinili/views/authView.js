@@ -1,6 +1,9 @@
+const { escapeHtml } = require("../utils/helpers");
+
 /**
- * Genera e restituisce l'HTML per la pagina iniziale di benvenuto.
- * @returns {string} - La stringa HTML completa per la pagina.
+ * Genera e restituisce la stringa HTML completa per la pagina iniziale di benvenuto.
+ * Questa funzione non prende parametri; è un template statico.
+ * @returns {string} - L'intera pagina HTML come stringa.
  */
 const renderStartPage = () => {
   return `
@@ -10,33 +13,27 @@ const renderStartPage = () => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Matchify - Home</title>
+        <!-- Il percorso a styles.css funziona grazie al middleware express.static('public') in server.js -->
         <link rel="stylesheet" href="/styles.css">
+        <!-- Policy di Sicurezza per il Contenuto: una buona pratica per mitigare attacchi XSS -->
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
       </head>
       <body>
         <div class="container">
-          <h1>Matchify</h1>
-          <p class="text-center">Analizza le statistiche delle tue playlist Spotify.</p>
-          <div style="text-align:center; margin-top: 2rem;">
-            <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
-          </div>
+          <header class="text-center">
+            <h1>Matchify</h1>
+            <p class="lead">Analizza le statistiche dettagliate delle tue playlist Spotify.</p>
+          </header>
+          <main class="text-center" style="margin-top: 2rem;">
+            <a href="/login" class="btn btn-primary btn-lg">Accedi con Spotify</a>
+          </main>
         </div>
       </body>
     </html>
   `;
 };
 
+// Esporta la funzione in modo che possa essere importata e utilizzata dal authController.js
 module.exports = {
     renderStartPage,
-};```
-
-### Come Utilizzare il Router
-Infine, assicurati di montare questo router nel tuo `server.js`, tipicamente sul percorso radice (`/`).
-
-```javascript
-// in server.js
-const authRoutes = require('./routes/auth');
-
-// ...
-
-app.use('/', authRoutes); // Le rotte /start, /login, /callback saranno gestite qui.
+};
