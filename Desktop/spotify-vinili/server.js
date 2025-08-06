@@ -1,54 +1,78 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const session = require('express-session');
+// =================================================================
+// --- 1. Importazioni e Configurazione Iniziale ---
+// =================================================================
 
-// Importa le rotte
+// Carica le variabili d'ambiente dal file .env all'inizio di tutto
+require('dotenv').config(); 
+
+const express = require('express');
+const session = require('express-session');
+const path = require('path');
+
+// Importa tutti i router che abbiamo creato. Ogni router gestisce una
+// sezione specifica dell'applicazione.
 const authRoutes = require('./routes/auth');
-const appRoutes = require('./routes/app');
+const playlistRoutes = require('./routes/playlistRoutes');
+const albumRoutes = require('./routes/albumRoutes');
+const apiRoutes = require('./routes/apiRoutes');
+
+// =================================================================
+// --- 2. Inizializzazione dell'App Express ---
+// =================================================================
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-// Variabili ambiente obbligatorie
-const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URI, SESSION_SECRET } = process.env;
+// =================================================================
+// --- 3. Configurazione dei Middleware ---
+// =================================================================
 
-if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !REDIRECT_URI) {
-  console.error("⚠️  Configurare SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET e REDIRECT_URI nel file .env!");
-  process.exit(1);
-}
-
-// Configurazione middleware
-app.use(express.urlencoded({ extended: true }));
+// Middleware per servire file statici (CSS, immagini, JS lato client)
+// Express cercherà i file richiesti nella cartella 'public'.
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware per la gestione delle sessioni.
+// È fondamentale per mantenere l'utente loggato tra le diverse richieste.
+// La 'secret' dovrebbe essere una stringa lunga e casuale per la sicurezza.
 app.use(session({
-  secret: SESSION_SECRET || 'change-this-secret-in-production',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { maxAge: 3600000, sameSite: 'lax' }
+    secret: process.env.SESSION_SECRET,
+    resave: false, // Non salvare la sessione se non è stata modificata
+    saveUninitialized: true, // Salva le sessioni nuove, anche se vuote
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // Usa cookie sicuri (HTTPS) in produzione
+        maxAge: 1000 * 60 * 60 * 24 // Durata del cookie (es. 24 ore)
+    }
 }));
 
-// Middleware per la gestione dell'autenticazione
-const requireAuth = (req, res, next) => {
-  // Le rotte pubbliche non hanno bisogno di questo controllo
-  if (!req.session.accessToken) {
-    return res.redirect('/start');
-  }
-  // Qui si potrebbe aggiungere logica per rinfrescare il token se scaduto
-  next();
-};
 
-// Route per il check dello stato del server
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
+// =================================================================
+// --- 4. Montaggio dei Router ---
+// =================================================================
+// Questo è il cuore della refactorizzazione. Diciamo a Express di usare
+// un router specifico per ogni "ramo" del nostro sito.
 
-// Usa le rotte di autenticazione (non richiedono il login)
+// Usa il router di autenticazione per percorsi come /login, /callback, /start
 app.use('/', authRoutes);
 
-// Da qui in poi, tutte le rotte richiederanno l'autenticazione
-app.use('/', requireAuth, appRoutes);
+// Usa il router delle playlist per il percorso principale / e /playlist/:id
+app.use('/', playlistRoutes);
 
-app.listen(port, () => {
-  console.log(`🚀 Server in ascolto sulla porta ${port}`);
+// Monta il router degli album sul percorso /album.
+// Quindi una rotta definita come '/:id' in albumRoutes diventerà '/album/:id'
+app.use('/album', albumRoutes);
+
+// Monta il router delle API sul percorso /api.
+// Quindi una rotta '/duration/:id' in apiRoutes diventerà '/api/duration/:id'
+app.use('/api', apiRoutes);
+
+
+// =================================================================
+// --- 5. Avvio del Server ---
+// =================================================================
+app.listen(PORT, () => {
+    console.log(`🚀 Server in esecuzione su http://localhost:${PORT}`);
+    // Un piccolo check per le variabili d'ambiente critiche
+    if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+        console.warn('⚠️  Attenzione: SPOTIFY_CLIENT_ID o SPOTIFY_CLIENT_SECRET non sono impostati nel file .env. L\'autenticazione fallirà.');
+    }
 });
