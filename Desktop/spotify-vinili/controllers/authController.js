@@ -3,8 +3,10 @@ const { handleError } = require('../utils/helpers');
 const { renderStartPage } = require('../views/authView');
 
 /**
- * Gestore per mostrare la pagina di login iniziale.
- * La sua unica responsabilità è inviare l'HTML generato dalla vista.
+ * Gestore per la rotta /start.
+ * Mostra la pagina di login iniziale generata dalla vista.
+ * @param {object} req - L'oggetto richiesta di Express.
+ * @param {object} res - L'oggetto risposta di Express.
  */
 const getStartPage = (req, res) => {
   const html = renderStartPage();
@@ -13,7 +15,9 @@ const getStartPage = (req, res) => {
 
 /**
  * Gestore per la rotta /login.
- * Recupera l'URL di autorizzazione da Spotify e redirige l'utente.
+ * Recupera l'URL di autorizzazione di Spotify e reindirizza l'utente.
+ * @param {object} req - L'oggetto richiesta di Express.
+ * @param {object} res - L'oggetto risposta di Express.
  */
 const login = (req, res) => {
   const authUrl = getSpotifyAuthUrl();
@@ -22,41 +26,54 @@ const login = (req, res) => {
 
 /**
  * Gestore per la rotta /callback.
- * Riceve il codice da Spotify, lo scambia per un token di accesso,
- * e salva i token nella sessione dell'utente.
+ * Questa è la funzione più critica del flusso di autenticazione.
+ * 1. Riceve il codice di autorizzazione da Spotify.
+ * 2. Lo scambia con un token di accesso chiamando il spotifyService.
+ * 3. Se lo scambio ha successo, salva i token nella sessione e reindirizza all'app.
+ * 4. Se lo scambio fallisce, mostra una pagina di errore.
+ * @param {object} req - L'oggetto richiesta di Express, contenente 'code' e 'error' nei query params.
+ * @param {object} res - L'oggetto risposta di Express.
  */
 const handleCallback = async (req, res) => {
   const { code, error } = req.query;
   
-  // 1. Controlla se Spotify ha restituito un errore
+  // 1. Controllo primario: Spotify ha restituito un errore esplicito? (es. l'utente ha negato l'accesso)
   if (error) {
-    console.error('Spotify OAuth error:', error);
-    return handleError(res, `Errore di autorizzazione da Spotify: ${error}`, 400);
+    console.error('Spotify OAuth error (es. accesso negato):', error);
+    return handleError(res, `Errore di autorizzazione restituito da Spotify: ${error}`, 400);
   }
   
-  // 2. Controlla se il codice di autorizzazione è presente
+  // 2. Controllo di sanità: Il codice di autorizzazione è presente?
   if (!code) {
-    return handleError(res, 'Nessun codice di autorizzazione fornito da Spotify.', 400);
+    return handleError(res, 'Nessun codice di autorizzazione valido fornito da Spotify.', 400);
   }
 
-  // 3. Scambia il codice per i token di accesso
+  // 3. Blocco critico: tenta di scambiare il codice per un token di accesso.
+  // Questo blocco può fallire per errori di configurazione (es. Redirect URI o Client Secret sbagliati).
   try {
     const tokens = await getAccessToken(code);
     
-    // Salva i token e la data di scadenza nella sessione
+    // Se lo scambio ha successo, salva i token e la data di scadenza nella sessione dell'utente.
     req.session.accessToken = tokens.access_token;
-    req.session.refreshToken = tokens.refresh_token; // È buona norma salvare anche questo
+    req.session.refreshToken = tokens.refresh_token; // Utile per rinnovare il token in futuro
     req.session.tokenExpiry = Date.now() + (tokens.expires_in * 1000);
     
-    // Redirigi alla pagina principale dell'applicazione
+    // Reindirizza alla pagina principale dell'applicazione, il login è completato!
     res.redirect('/');
 
   } catch (err) {
-    console.error('OAuth callback token exchange error:', err);
-    handleError(res, 'Errore critico durante l\'autenticazione con Spotify.');
+    // SE ENTRIAMO QUI, lo scambio è fallito. Dobbiamo capire perché.
+    
+    // Logga l'errore completo restituito da Spotify/Axios per un debug efficace.
+    // Cerca questo messaggio nei log del tuo servizio di hosting (Render).
+    console.error('ERRORE DETTAGLIATO NELLO SCAMBIO DEL TOKEN:', err.response?.data || err.message);
+    
+    // Mostra una pagina di errore generica all'utente.
+    handleError(res, 'Errore critico durante la finalizzazione dell\'autenticazione con Spotify. Controlla la configurazione.');
   }
 };
 
+// Esporta tutte le funzioni per renderle disponibili al router (authRoutes.js).
 module.exports = {
   getStartPage,
   login,
