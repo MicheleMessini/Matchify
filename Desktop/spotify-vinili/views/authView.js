@@ -1,6 +1,6 @@
 /**
  * Genera e restituisce la stringa HTML per la pagina iniziale di benvenuto.
- * VERSIONE MIGLIORATA: layout più pulito, spaziatura corretta e titolo accattivante.
+ * VERSIONE CORRETTA: Allineamento e spaziatura migliorati.
  */
 const renderStartPage = () => {
   return `
@@ -14,18 +14,19 @@ const renderStartPage = () => {
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self';" />
       </head>
       <body>
-        <!-- Contenitore flessibile per centrare verticalmente e orizzontalmente -->
+        <!-- Contenitore flessibile per centrare perfettamente gli elementi -->
         <div class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center;">
 
-            <!-- Blocco dei contenuti principali -->
             <main>
-                <!-- Il tuo CSS ha già uno stile speciale per H1 con gradiente, lo usiamo qui. -->
+                <!-- Usiamo l'h1 con lo stile a gradiente che hai già definito -->
                 <h1>Matchify</h1>
 
+                <!-- Paragrafo con spaziatura controllata tramite `margin` -->
                 <p class="text-muted" style="font-size: var(--fs-lg); margin: var(--space-md) 0 var(--space-xl) 0;">
                     Scopri la compatibilità musicale analizzando le tue playlist.
                 </p>
 
+                <!-- Pulsante con padding e font-size personalizzati per un maggiore impatto -->
                 <a href="/login" class="btn btn-primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--fs-lg);">
                     Accedi con Spotify
                 </a>
@@ -39,4 +40,4 @@ const renderStartPage = () => {
 
 module.exports = {
   renderStartPage,
-};
+};```
