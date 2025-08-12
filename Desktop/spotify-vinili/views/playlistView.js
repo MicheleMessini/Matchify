@@ -110,7 +110,7 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
               ${playlists.map(renderPlaylistCard).join('')}
             </div>
           `}
-          <!-- La navigazione userà la funzione `renderPagination` aggiornata per creare i bottoni -->
+          <!-- La navigazione userà la funzione renderPagination aggiornata per creare i bottoni -->
           <nav class="pagination-nav text-center mt-4">
             ${renderPagination(currentPage, totalPages, '/?')}
           </nav>
