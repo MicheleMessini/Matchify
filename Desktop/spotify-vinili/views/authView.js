@@ -32,10 +32,6 @@ const renderStartPage = () => {
         <main>
             <h1>Matchify</h1>
 
-            <p class="text-muted" style="font-size: var(--fs-lg); margin: var(--space-md) 0 var(--space-xl) 0; max-width: 45ch;">
-                Scopri la compatibilità musicale analizzando le tue playlist.
-            </p>
-
             <a href="/login" class="btn btn-primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--fs-lg);">
                 Accedi con Spotify
             </a>
