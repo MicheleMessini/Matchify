@@ -3,7 +3,7 @@
 // =================================================================
 
 // Carica le variabili d'ambiente dal file .env all'inizio di tutto
-require('dotenv').config(); 
+require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
@@ -23,6 +23,14 @@ const apiRoutes = require('./routes/apiRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ---> INIZIO MODIFICA <---
+// Fa in modo che Express si fidi degli header del proxy di Render.
+// Questo è FONDAMENTALE per far funzionare i cookie sicuri delle sessioni
+// in un ambiente di produzione.
+app.set('trust proxy', 1);
+// ---> FINE MODIFICA <---
+
+
 // =================================================================
 // --- 3. Configurazione dei Middleware ---
 // =================================================================
@@ -38,7 +46,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false, // Non salvare la sessione se non è stata modificata
     saveUninitialized: true, // Salva le sessioni nuove, anche se vuote
-    cookie: { 
+    cookie: {
         secure: process.env.NODE_ENV === 'production', // Usa cookie sicuri (HTTPS) in produzione
         maxAge: 1000 * 60 * 60 * 24 // Durata del cookie (es. 24 ore)
     }
