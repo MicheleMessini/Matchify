@@ -1,34 +1,35 @@
 /**
- * Genera e restituisce la stringa HTML essenziale per la pagina iniziale di benvenuto.
- * Questa versione è stata ridotta al minimo indispensabile per la funzionalità.
- * @returns {string} - L'intera pagina HTML come stringa.
+ * Genera e restituisce la stringa HTML per la pagina iniziale di benvenuto.
+ * VERSIONE MIGLIORATA: layout più pulito, spaziatura corretta e titolo accattivante.
  */
 const renderStartPage = () => {
   return `
     <!DOCTYPE html>
     <html lang="it">
       <head>
-        <meta charset="UTF-A">
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Benvenuto in Matchify</title>
         <link rel="stylesheet" href="/styles.css">
-        <!-- Policy di Sicurezza: fondamentale per la protezione. -->
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self';" />
       </head>
       <body>
-        <div class="container" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+        <!-- Contenitore flessibile per centrare verticalmente e orizzontalmente -->
+        <div class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center;">
 
-          <main class="text-center">
-          
-            <h1>Matchify</h1>
-            
-            <p class="text-muted" style="margin-bottom: var(--space-lg);">
-              Clicca qui sotto per accedere e analizzare le tue playlist.
-            </p>
+            <!-- Blocco dei contenuti principali -->
+            <main>
+                <!-- Il tuo CSS ha già uno stile speciale per H1 con gradiente, lo usiamo qui. -->
+                <h1>Matchify</h1>
 
-            <a href="/login" class="btn btn-primary">Accedi con Spotify</a>
-            
-          </main>
+                <p class="text-muted" style="font-size: var(--fs-lg); margin: var(--space-md) 0 var(--space-xl) 0;">
+                    Scopri la compatibilità musicale analizzando le tue playlist.
+                </p>
+
+                <a href="/login" class="btn btn-primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--fs-lg);">
+                    Accedi con Spotify
+                </a>
+            </main>
 
         </div>
       </body>
