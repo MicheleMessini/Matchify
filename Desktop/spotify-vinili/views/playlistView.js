@@ -7,6 +7,7 @@ const { escapeHtml, renderPagination } = require('../utils/helpers');
 
 /**
  * Genera l'HTML per la card di una playlist.
+ * VERSIONE AGGIORNATA: Senza la durata e con la struttura corretta per il nuovo effetto hover.
  */
 const renderPlaylistCard = (playlist) => {
   const trackCount = playlist.tracks?.total || 0;
@@ -23,9 +24,9 @@ const renderPlaylistCard = (playlist) => {
         <div class="card-content">
           <h4 class="card-title">${escapeHtml(playlist.name)}</h4>
           <p class="card-text text-muted">
-            Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} &bull; ${trackCount} tracce<br>
-            <span class="duration-text duration-loading">Caricamento...</span>
+            Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')} &bull; ${trackCount} tracce
           </p>
+          <!-- RIMOSSO: La scritta della durata "Caricamento..." non è più presente. -->
         </div>
       </a>
     </div>
@@ -33,7 +34,7 @@ const renderPlaylistCard = (playlist) => {
 };
 
 /**
- * Genera l'HTML per la card di un artista.
+ * Genera l'HTML per la card di un artista. (Nessuna modifica necessaria qui)
  */
 const renderArtistCard = (artist) => `
   <div class="card">
@@ -51,7 +52,7 @@ const renderArtistCard = (artist) => `
 `;
 
 /**
- * Genera l'HTML per la card di un album (versione semplificata).
+ * Genera l'HTML per la card di un album (versione semplificata). (Nessuna modifica necessaria qui)
  */
 const renderAlbumCard = (album, playlistId) => `
   <div class="card">
@@ -65,8 +66,6 @@ const renderAlbumCard = (album, playlistId) => `
       <div class="card-content">
         <h4 class="card-title">${escapeHtml(album.name)}</h4>
         <p class="card-text text-muted">${escapeHtml(album.artist)}</p>
-        
-        <!-- RIMOSSO: Barra di progresso. Ora è un semplice testo. -->
         <p class="card-text text-primary">${album.tracksPresent} / ${album.totalTracks} brani</p>
       </div>
     </a>
@@ -79,6 +78,7 @@ const renderAlbumCard = (album, playlistId) => `
 
 /**
  * Genera l'HTML per la pagina principale delle playlist.
+ * VERSIONE AGGIORNATA: Usa la classe .playlist-grid e rimuove lo script della durata.
  */
 const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
   return `
@@ -105,31 +105,19 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
               <a href="/" class="btn btn-primary mt-2">Ricarica</a>
             </div>
           ` : `
-            <div class="grid">
+            <!-- MODIFICA: Aggiunta la classe .playlist-grid per gli stili hover corretti -->
+            <div class="grid playlist-grid">
               ${playlists.map(renderPlaylistCard).join('')}
             </div>
           `}
+          <!-- La navigazione userà la funzione `renderPagination` aggiornata per creare i bottoni -->
           <nav class="pagination-nav text-center mt-4">
             ${renderPagination(currentPage, totalPages, '/?')}
           </nav>
         </main>
       </div>
 
-      <!-- Script per caricare le durate delle playlist in modo asincrono. È una complessità utile. -->
-      <script>
-        document.addEventListener('DOMContentLoaded', () => {
-          document.querySelectorAll('[data-playlist-id]').forEach(card => {
-            const playlistId = card.dataset.playlistId;
-            const durationElement = card.querySelector('.duration-text');
-            if (!playlistId || !durationElement) return;
-
-            fetch('/api/duration/' + playlistId)
-              .then(res => res.ok ? res.json() : Promise.reject('Errore API'))
-              .then(data => { durationElement.textContent = data.durationText || 'N/D'; })
-              .catch(() => { durationElement.textContent = 'Durata N/D'; });
-          });
-        });
-      </script>
+      <!-- RIMOSSO: Lo script asincrono per la durata non è più necessario -->
     </body>
     </html>
   `;
@@ -141,7 +129,6 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
 const renderPlaylistDetailPage = (viewData) => {
   const { playlist, stats, view, page, contentData, totalPages } = viewData;
 
-  // Sezione del contenuto (griglia di card)
   const contentHtml = `
     <div class="view-toggle mb-4">
       <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Album</a>
@@ -171,7 +158,6 @@ const renderPlaylistDetailPage = (viewData) => {
     <body>
       <div class="container">
       
-        <!-- RIMOSSO: Il componente .album-header complesso. Ora è un'intestazione standard. -->
         <header style="margin-bottom: var(--space-xl);">
             <h1>${escapeHtml(playlist.name)}</h1>
             <p class="text-muted">${escapeHtml(playlist.description || `Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}`)}</p>
