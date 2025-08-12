@@ -1,59 +1,44 @@
-// Importa funzioni di utilità essenziali.
-// escapeHtml -> Per la sicurezza, previene attacchi XSS.
-// formatDuration -> Per formattare la durata da millisecondi a un formato leggibile.
+// Import delle funzioni strettamente necessarie.
 const { escapeHtml, formatDuration } = require('../utils/helpers');
 
 /**
- * Genera l'HTML completo per la pagina di dettaglio di un album.
- * @param {object} viewData - Oggetto contenente tutti i dati per la vista (album, tracce, ecc.).
- * @returns {string} - L'intera pagina HTML come stringa pronta per essere inviata al client.
+ * Genera l'HTML per la pagina di dettaglio di un album (versione semplificata).
+ * @param {object} viewData - Dati necessari per la vista.
+ * @returns {string} - L'intera pagina HTML come stringa.
  */
 const renderAlbumDetailPage = (viewData) => {
-  const { album, tracksDetails, playlistId, playlistTrackUris } = viewData;
+  const { album, playlistTrackUris, playlistId } = viewData;
 
-  // --- 1. Calcolo dei dati derivati (tutti necessari per la UI) ---
-
-  // Calcola la durata totale dell'album sommando la durata di ogni traccia.
-  const totalDurationMs = album.tracks.items.reduce((total, track) => total + (track.duration_ms || 0), 0);
-  const totalDurationText = formatDuration(totalDurationMs);
-  
-  // Conta quante tracce dell'album sono già nella playlist dell'utente.
+  // Calcola le statistiche essenziali.
+  const totalDurationText = formatDuration(album.tracks.items.reduce((total, track) => total + (track.duration_ms || 0), 0));
   const tracksInPlaylistCount = album.tracks.items.filter(track => playlistTrackUris.has(track.uri)).length;
-  
-  // Calcola la percentuale di completamento.
-  const completionPercentage = album.total_tracks > 0
-    ? Math.round((tracksInPlaylistCount / album.total_tracks) * 100)
-    : 0;
 
-  // --- 2. Definizione della funzione helper per renderizzare ogni traccia ---
-  // È definita qui dentro perché serve solo a questa funzione principale.
+  /**
+   * Helper interno per renderizzare una singola traccia in modo minimale.
+   */
   const renderTrack = (track) => {
-    const trackDetail = tracksDetails.tracks.find(t => t.id === track.id);
     const isInPlaylist = playlistTrackUris.has(track.uri);
     const duration = formatDuration(track.duration_ms || 0);
-    const popularity = trackDetail?.popularity || 0; // Uso di optional chaining per più pulizia
 
+    // Usa le classi CSS base che hai già (.track-item) ma con meno elementi.
     return `
-      <li class="track-item ${isInPlaylist ? 'in-playlist' : ''}">
-        <div class="track-info">
-          <span class="track-number">${track.track_number}</span>
-          <span class="track-name">${escapeHtml(track.name)}</span>
-          <span class="track-artists d-none d-md-inline"> - ${escapeHtml(track.artists.map(a => a.name).join(', '))}</span>
+      <li class="track-item ${isInPlaylist ? 'playing' : ''}">
+        <span class="track-number">${track.track_number}</span>
+        <div>
+          <div class="track-name">${escapeHtml(track.name)}</div>
+          <div class="text-muted" style="font-size: var(--fs-sm);">
+            ${escapeHtml(track.artists.map(a => a.name).join(', '))}
+          </div>
         </div>
-        <div class="track-details">
-          <span class="track-popularity" title="Popolarità: ${popularity}/100">
-            <svg width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-1.5A5.5 5.5 0 1 0 8 2.5a5.5 5.5 0 0 0 0 11"/></svg>
-            ${popularity}
-          </span>
-          <span class="track-duration">${duration}</span>
-          <span class="track-status" title="${isInPlaylist ? 'Nella playlist' : 'Non nella playlist'}">${isInPlaylist ? '✔️' : '❌'}</span>
+        <div class="track-duration">
+          ${duration}
+          ${isInPlaylist ? `<span title="Presente nella playlist"> ✔️</span>` : ''}
         </div>
       </li>
     `;
   };
 
-  // --- 3. Costruzione della pagina HTML completa ---
-
+  // Costruzione della pagina HTML completa.
   return `
     <!DOCTYPE html>
     <html lang="it">
@@ -62,30 +47,28 @@ const renderAlbumDetailPage = (viewData) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Album: ${escapeHtml(album.name)}</title>
       <link rel="stylesheet" href="/styles.css">
-      
-      <!-- Intestazione di sicurezza: essenziale per proteggere da attacchi. -->
       <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
     </head>
     <body>
       <div class="container">
         
-        <header class="album-header">
+        <!-- RIMOSSO: Il componente complesso .album-header -->
+        <header style="display: flex; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl);">
           <img src="${escapeHtml(album.images?.[0]?.url || '/placeholder.png')}" 
-               alt="Copertina di ${escapeHtml(album.name)}" 
-               class="album-cover"
+               alt="Copertina di ${escapeHtml(album.name)}"
+               class="album-cover" 
+               style="width: 150px; height: 150px; border-radius: var(--radius-base);"
                onerror="this.src='/placeholder.png'">
-          <div class="album-info">
+          <div>
             <h1>${escapeHtml(album.name)}</h1>
-            <h2>by ${album.artists.map(a => escapeHtml(a.name)).join(', ')}</h2>
-            <p>
-              ${new Date(album.release_date).getFullYear()} &bull; 
-              ${album.total_tracks} tracce &bull; 
-              ${totalDurationText}
+            <p class="text-muted" style="font-size: var(--fs-lg); margin-top: -0.5rem;">
+              di ${album.artists.map(a => escapeHtml(a.name)).join(', ')}
             </p>
+            <p>${new Date(album.release_date).getFullYear()} &bull; ${album.total_tracks} tracce &bull; ${totalDurationText}</p>
+
+            <!-- Mostra il contatore solo se siamo arrivati da una playlist -->
             ${playlistId ? `
-              <div class="playlist-completion-badge" title="${tracksInPlaylistCount} di ${album.total_tracks} tracce sono nella tua playlist">
-                <span class="badge bg-success">Completamento: ${completionPercentage}%</span>
-              </div>
+              <p class="text-primary">${tracksInPlaylistCount} di ${album.total_tracks} brani sono nella playlist.</p>
             ` : ''}
           </div>
         </header>
@@ -98,7 +81,8 @@ const renderAlbumDetailPage = (viewData) => {
         </main>
 
         <footer class="text-center mt-4">
-          <button onclick="history.back()" class="btn btn-secondary">&larr; Torna Indietro</button>
+          <!-- Semplificato con un link invece che con un pulsante JS -->
+          <a href="javascript:history.back()" class="btn btn-secondary">&larr; Torna Indietro</a>
         </footer>
         
       </div>
@@ -107,7 +91,6 @@ const renderAlbumDetailPage = (viewData) => {
   `;
 };
 
-// Esporta solo la funzione principale, nascondendo i dettagli interni.
 module.exports = {
   renderAlbumDetailPage,
-};
+};```
