@@ -95,7 +95,6 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
       <div class="container">
         <header class="text-center" style="margin-bottom: var(--space-xl);">
           <h1>Le Tue Playlist</h1>
-          <p class="text-muted">Seleziona una playlist per analizzarne il contenuto.</p>
         </header>
         
         <main>
