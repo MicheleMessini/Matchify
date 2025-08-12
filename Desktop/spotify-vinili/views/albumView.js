@@ -52,7 +52,6 @@ const renderAlbumDetailPage = (viewData) => {
     <body>
       <div class="container">
         
-        <!-- RIMOSSO: Il componente complesso .album-header -->
         <header style="display: flex; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl);">
           <img src="${escapeHtml(album.images?.[0]?.url || '/placeholder.png')}" 
                alt="Copertina di ${escapeHtml(album.name)}"
@@ -89,8 +88,8 @@ const renderAlbumDetailPage = (viewData) => {
     </body>
     </html>
   `;
-};
+}; // <-- Questa parentesi graffa chiude la funzione `renderAlbumDetailPage`
 
 module.exports = {
   renderAlbumDetailPage,
-};```
+};
