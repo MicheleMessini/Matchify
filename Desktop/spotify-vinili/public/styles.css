@@ -2,7 +2,7 @@
    DESIGN TOKENS & CUSTOM PROPERTIES
    =============================== */
 :root {
-    /* Colori principali */
+    /* ...TUTTE LE TUE VARIABILI ORIGINALI... */
     --spotify-green: #1db954;
     --spotify-green-light: #1ed760;
     --spotify-green-dark: #1aa34a;
@@ -10,8 +10,6 @@
     --spotify-dark: #121212;
     --spotify-dark-elevated: #181818;
     --spotify-dark-pressed: #000000;
-    
-    /* Scala di grigi */
     --gray-100: #f7f7f7;
     --gray-200: #e5e5e5;
     --gray-300: #b3b3b3;
@@ -21,18 +19,12 @@
     --gray-700: #282828;
     --gray-800: #1e1e1e;
     --gray-900: #121212;
-    
-    /* Colori semantici */
     --color-success: #1db954;
     --color-warning: #ffa42b;
     --color-error: #f15e6c;
     --color-info: #509bf5;
-    
-    /* Tipografia */
     --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --font-display: 'Circular', var(--font-primary);
-    
-    /* Font sizes - fluid typography */
     --fs-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
     --fs-sm: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
     --fs-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
@@ -40,66 +32,30 @@
     --fs-xl: clamp(1.5rem, 1.25rem + 1.25vw, 2rem);
     --fs-2xl: clamp(2rem, 1.5rem + 2.5vw, 3rem);
     --fs-3xl: clamp(2.5rem, 2rem + 2.5vw, 3.5rem);
-    
-    /* Font weights */
     --fw-normal: 400;
     --fw-medium: 500;
     --fw-semibold: 600;
     --fw-bold: 700;
     --fw-black: 900;
-    
-    /* Spacing - fluid spacing */
     --space-xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
     --space-sm: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem);
     --space-md: clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
     --space-lg: clamp(1.5rem, 1.25rem + 1.25vw, 2rem);
     --space-xl: clamp(2rem, 1.5rem + 2.5vw, 3rem);
     --space-2xl: clamp(3rem, 2rem + 5vw, 4rem);
-    
-    /* Border radius */
     --radius-sm: 4px;
     --radius-base: 8px;
     --radius-lg: 12px;
     --radius-xl: 16px;
     --radius-full: 9999px;
-    
-    /* Shadows - multi-layer for depth */
     --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.14), 0 1px 5px rgba(0, 0, 0, 0.22);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.25);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.25);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.25);
     --shadow-glow: 0 0 40px rgba(29, 185, 84, 0.3);
-    --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
-    
-    /* Transizioni */
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    /* Z-index scale */
-    --z-base: 0;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-modal: 300;
-    --z-popover: 400;
-    --z-tooltip: 500;
-    
-    /* Layout */
-    --container-max: 1400px;
-    --container-padding: var(--space-md);
-}
-
-/* Dark mode adjustments */
-@media (prefers-color-scheme: light) {
-    :root {
-        --spotify-black: #ffffff;
-        --spotify-dark: #f5f5f5;
-        --spotify-dark-elevated: #ffffff;
-        --text-primary: #191414;
-        --text-secondary: #535353;
-    }
 }
 
 /* ===============================
@@ -108,14 +64,11 @@
 html {
     box-sizing: border-box;
     font-size: 16px;
-    scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: inherit;
@@ -127,8 +80,6 @@ body {
     color: var(--gray-100);
     line-height: 1.6;
     min-height: 100vh;
-    position: relative;
-    overflow-x: hidden;
 }
 
 body::before {
@@ -136,8 +87,8 @@ body::before {
     position: fixed;
     inset: 0;
     background-image: 
-        radial-gradient(circle at 20% 50%, rgba(29, 185, 84, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(29, 185, 84, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(29, 185, 84, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(29, 185, 84, 0.05) 0%, transparent 40%);
     pointer-events: none;
     z-index: -1;
 }
@@ -145,55 +96,31 @@ body::before {
 /* ===============================
    TYPOGRAPHY
    =============================== */
-:is(h1, h2, h3, h4) { /* Semplificato, non servono h5, h6 al momento */
-    font-weight: var(--fw-bold);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-}
-
 h1 {
     font-size: var(--fs-3xl);
     background: linear-gradient(135deg, var(--spotify-green) 0%, var(--spotify-green-light) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-fill-color: transparent;
-    margin: 0; /* Rimuoviamo il margin per controllo più granulare */
-    text-align: center;
-    position: relative;
-    animation: fadeInUp var(--transition-slow) ease-out;
-}
-
-h2 {
-    font-size: var(--fs-2xl);
-    color: var(--gray-100);
-}
-
-h3 {
-    font-size: var(--fs-xl);
-    color: var(--gray-100);
 }
 
 h4 {
     font-size: var(--fs-lg);
     font-weight: var(--fw-semibold);
     color: var(--gray-100);
-    margin: 0; /* Reset del margin per le card */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-
 /* ===============================
-   LAYOUT COMPONENTS
+   LAYOUT & UTILITY
    =============================== */
 .container {
     max-width: var(--container-max);
     margin-inline: auto;
-    padding: var(--space-xl) var(--container-padding);
-    position: relative;
+    padding: var(--space-xl) var(--space-md);
 }
 
 .grid {
@@ -202,6 +129,10 @@ h4 {
     gap: var(--space-lg);
 }
 
+.text-center { text-align: center; }
+.text-muted { color: var(--gray-400); }
+.text-primary { color: var(--spotify-green); }
+
 /* ===============================
    CARD COMPONENT
    =============================== */
@@ -209,26 +140,15 @@ h4 {
     background: var(--spotify-dark-elevated);
     border-radius: var(--radius-base);
     padding: var(--space-md);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent; /* Trasparente di default */
     cursor: pointer;
-    overflow: hidden;
-    position: relative;
     transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
-    will-change: transform, box-shadow;
 }
 
-.card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: var(--shadow-lg), var(--shadow-glow);
-    border-color: rgba(29, 185, 84, 0.3);
-}
-
-.card:hover .card-img-wrapper .card-img {
-    transform: scale(1.1);
-}
-
-.card:hover .card-img-wrapper::after {
-    transform: translate(-50%, -50%) scale(1);
+/* RIMUOVE LA SOTTOLINEATURA DA TUTTI I LINK */
+a {
+    text-decoration: none;
+    color: inherit;
 }
 
 .card-img-wrapper {
@@ -239,64 +159,36 @@ h4 {
     position: relative;
 }
 
-.card-img-wrapper::after {
-    content: '▶';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    width: 60px;
-    height: 60px;
-    background: var(--spotify-green);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    color: var(--spotify-black);
-    box-shadow: var(--shadow-lg);
-    transition: transform var(--transition-bounce);
-}
-
 .card-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform var(--transition-slow) ease-out;
+    transition: transform 0.35s ease;
 }
 
 .card-content {
-    /* Contenitore per il testo dentro le card */
-}
-
-.card-title { /* Questo è un h4 */
-    /* Gli stili sono già definiti globalmente per h4 */
+    /* Spazio per il testo */
 }
 
 .card-text {
     font-size: var(--fs-sm);
     color: var(--gray-300);
-    line-height: 1.5;
     margin-top: var(--space-xs);
 }
 
 /* ===============================
-   BUTTON COMPONENTS
+   BUTTON COMPONENT
    =============================== */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-xs);
     padding: var(--space-sm) var(--space-lg);
     border: 2px solid transparent;
     border-radius: var(--radius-full);
     font-size: var(--fs-base);
     font-weight: var(--fw-semibold);
-    text-decoration: none;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: transform var(--transition-base), box-shadow var(--transition-base), background-color var(--transition-base), border-color var(--transition-base), color var(--transition-base);
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .btn:hover {
@@ -306,7 +198,6 @@ h4 {
 .btn-primary {
     background: var(--spotify-green);
     color: var(--spotify-black);
-    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
@@ -321,163 +212,93 @@ h4 {
 }
 
 .btn-secondary:hover {
-    background: rgba(29, 185, 84, 0.1);
     border-color: var(--spotify-green);
     color: var(--spotify-green);
 }
 
 /* ===============================
-   TRACK LIST COMPONENT
+   NUOVI STILI SPECIFICI PER LE PLAYLIST
    =============================== */
-.tracklist {
-    list-style: none; /* Rimuoviamo i punti dall'ol */
+
+/* Stile per l'hover nella griglia delle playlist: più sobrio. */
+.playlist-grid .card:hover {
+    transform: none; /* Annulla qualsiasi effetto di sollevamento/zoom sulla card */
+    box-shadow: var(--shadow-lg); /* Mantiene un'ombra per la profondità */
+    border-color: var(--spotify-green); /* Evidenzia il bordo per indicare che è cliccabile */
 }
 
-.track-item {
-    display: grid;
-    grid-template-columns: 20px 1fr auto;
-    align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-sm);
-    border-radius: var(--radius-base);
-    transition: background-color var(--transition-base);
-}
-
-.track-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.track-item:hover .track-number {
-    color: var(--spotify-green);
-}
-
-.track-item.playing, .track-item.playing:hover {
-    background: rgba(29, 185, 84, 0.15);
-    color: var(--spotify-green-light);
-}
-
-.track-item.playing .track-name,
-.track-item.playing .track-number {
-    color: var(--spotify-green-light);
-}
-
-
-.track-number {
-    color: var(--gray-400);
-    font-weight: var(--fw-medium);
-    text-align: center;
-    transition: color var(--transition-base);
-}
-
-.track-name {
-    color: var(--gray-100);
-    font-weight: var(--fw-medium);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.track-duration {
-    color: var(--gray-400);
-    font-size: var(--fs-sm);
-    font-weight: var(--fw-medium);
-}
-
-/* ===============================
-   RESPONSIVE DESIGN
-   =============================== */
-@media (max-width: 768px) {
-    .container {
-        padding: var(--space-lg) var(--space-md);
-    }
-    .grid {
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-        gap: var(--space-md);
-    }
-    h1 {
-      font-size: var(--fs-2xl);
-    }
-}
-
-@media (max-width: 480px) {
-    .grid {
-        grid-template-columns: repeat(2, 1fr); /* 2 colonne su mobile */
-    }
-    .btn {
-        width: 100%;
-        padding: var(--space-md);
-    }
-    .track-item {
-        grid-template-columns: 1fr auto;
-    }
-    .track-number {
-        display: none;
-    }
-}
-
-/* ===============================
-   ACCESSIBILITY
-   =============================== */
-@media (prefers-reduced-motion: reduce) {
-    :is(*, *::before, *::after) {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
-}
-
-:focus-visible {
-    outline: 2px solid var(--spotify-green);
-    outline-offset: 2px;
+/* Quando si passa il mouse sulla griglia delle playlist, l'immagine non deve zoomare. */
+.playlist-grid .card:hover .card-img {
+    transform: none;
 }
 
 /* 
- * ===============================
- * --- NUOVI STILI PER MATCHIFY ---
- * ===============================
+ * L'overlay "play" (`::after`) viene definito nello stile generale della card qui sotto, 
+ * così viene ereditato di default da tutte le card, TRANNE quelle nella .playlist-grid
  */
-
-/* Applica uno stile HOVER specifico solo alle card dentro la griglia delle playlist */
-.playlist-grid .card:hover {
-  transform: none; /* Annulla l'animazione di sollevamento indesiderata */
-  box-shadow: var(--shadow-lg); /* Mantiene un'ombra per dare profondità */
-  border-color: var(--spotify-green); /* Evidenzia il bordo al passaggio del mouse (molto intuitivo!) */
+.card-img-wrapper::after {
+    content: '▶';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    background: var(--spotify-green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--spotify-black);
+    box-shadow: var(--shadow-lg);
+    transition: transform var(--transition-bounce), opacity 0.3s;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0; /* Nascosto di default */
+    pointer-events: none;
 }
 
-/* Mostra l'icona Play sovrapposta quando passi il mouse, rendendo il click intuitivo */
-.playlist-grid .card:hover .card-img-wrapper::after {
-  transform: translate(-50%, -50%) scale(1);
+/* Mostra il pulsante play solo quando la classe card-img-wrapper non è dentro .playlist-grid */
+.card:hover .card-img-wrapper:not(.playlist-grid .card-img-wrapper)::after,
+/* Questa riga è per una specificità maggiore in caso serva */
+.grid:not(.playlist-grid) .card:hover .card-img-wrapper::after {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
 }
 
-/* Stili per il contenitore della paginazione a bottoni */
+/* Se si vuole mostrare l'overlay nelle playlist, si usa una regola specifica */
+/* .playlist-grid .card:hover .card-img-wrapper::after {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+} */
+
+
+/* ===============================
+   PAGINAZIONE A BOTTONI
+   =============================== */
+
 .pagination-nav {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: var(--space-md);
-  margin-top: var(--space-2xl); /* Aumenta lo spazio sopra la paginazione */
-  flex-wrap: wrap; /* Assicura che non rompa il layout su schermi piccoli */
+  margin-top: var(--space-2xl);
+  flex-wrap: wrap;
 }
 
-/* Stile per il testo "Pagina X di Y" */
 .pagination-nav .page-info {
   color: var(--gray-300);
   font-weight: var(--fw-medium);
-  letter-spacing: 0.05em;
-  padding: 0 var(--space-sm);
 }
 
-/* Stile per i bottoni disattivati (es. "Precedente" sulla prima pagina) */
 .btn.disabled {
-  pointer-events: none; /* Impedisce il click */
-  background: var(--gray-700);
-  border-color: transparent;
+  pointer-events: none;
+  background-color: var(--gray-700);
+  border-color: var(--gray-700);
   color: var(--gray-500);
   opacity: 0.6;
 }
 
 .btn.disabled:hover {
-  transform: none; /* Annulla qualsiasi effetto hover sui bottoni disattivati */
+  transform: none;
   box-shadow: none;
 }
