@@ -217,32 +217,33 @@ a {
 }
 
 /* ===============================
-   NUOVI STILI SPECIFICI PER LE PLAYLIST
+   SPECIFIC COMPONENT STYLES
    =============================== */
 
 /* Stile per l'hover nella griglia delle playlist: più sobrio. */
 .playlist-grid .card:hover {
-    transform: none; /* Annulla qualsiasi effetto di sollevamento/zoom sulla card */
-    box-shadow: var(--shadow-lg); /* Mantiene un'ombra per la profondità */
-    border-color: var(--spotify-green); /* Evidenzia il bordo per indicare che è cliccabile */
+    transform: none;
+    box-shadow: var(--shadow-lg);
+    border-color: var(--spotify-green);
 }
 
-/* Quando si passa il mouse sulla griglia delle playlist, l'immagine non deve zoomare. */
+/* Nella griglia delle playlist, l'immagine non deve zoomare. */
 .playlist-grid .card:hover .card-img {
     transform: none;
 }
 
-/* 
- * L'overlay "play" (`::after`) viene definito nello stile generale della card qui sotto, 
- * così viene ereditato di default da tutte le card, TRANNE quelle nella .playlist-grid
- */
+/* L'overlay 'play' deve apparire solo sulle card che NON sono nella playlist-grid */
+.card:hover .card-img-wrapper:not(.playlist-grid .card-img-wrapper)::after,
+.grid:not(.playlist-grid) .card:hover .card-img-wrapper::after {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
 .card-img-wrapper::after {
     content: '▶';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60px;
-    height: 60px;
+    top: 50%; left: 50%;
+    width: 60px; height: 60px;
     background: var(--spotify-green);
     border-radius: 50%;
     display: flex;
@@ -253,29 +254,14 @@ a {
     box-shadow: var(--shadow-lg);
     transition: transform var(--transition-bounce), opacity 0.3s;
     transform: translate(-50%, -50%) scale(0);
-    opacity: 0; /* Nascosto di default */
+    opacity: 0;
     pointer-events: none;
 }
-
-/* Mostra il pulsante play solo quando la classe card-img-wrapper non è dentro .playlist-grid */
-.card:hover .card-img-wrapper:not(.playlist-grid .card-img-wrapper)::after,
-/* Questa riga è per una specificità maggiore in caso serva */
-.grid:not(.playlist-grid) .card:hover .card-img-wrapper::after {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-}
-
-/* Se si vuole mostrare l'overlay nelle playlist, si usa una regola specifica */
-/* .playlist-grid .card:hover .card-img-wrapper::after {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-} */
 
 
 /* ===============================
    PAGINAZIONE A BOTTONI
    =============================== */
-
 .pagination-nav {
   display: flex;
   justify-content: center;
@@ -301,4 +287,40 @@ a {
 .btn.disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* 
+ * ===============================
+ * --- LAYOUT PERSONALIZZATO PER LA GRIGLIA DELLE PLAYLIST ---
+ * ===============================
+ */
+
+/* Applica questo stile solo alla griglia delle playlist */
+.playlist-grid {
+    /* SU DESKTOP: Forza sempre la griglia ad avere 3 colonne. */
+    grid-template-columns: repeat(3, 1fr); 
+
+    /* Imposta una larghezza massima per la griglia, così non si allargherà all'infinito. */
+    max-width: 1000px;
+
+    /* Centra l'intera griglia nella pagina. */
+    margin-inline: auto;
+}
+
+/* 
+ * Per mantenere la responsività, aggiungiamo delle eccezioni per schermi più piccoli.
+ */
+
+/* SU TABLET (e schermi medi): la griglia passa a 2 colonne. */
+@media (max-width: 800px) {
+  .playlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* SU MOBILE: la griglia passa a 1 colonna per una migliore leggibilità. */
+@media (max-width: 500px) {
+  .playlist-grid {
+    grid-template-columns: 1fr;
+  }
 }
