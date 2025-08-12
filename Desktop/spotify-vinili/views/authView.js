@@ -21,7 +21,7 @@ const renderStartPage = () => {
                 <!-- Usiamo l'h1 con lo stile a gradiente che hai già definito -->
                 <h1>Matchify</h1>
 
-                <!-- Paragrafo con spaziatura controllata tramite `margin` -->
+                <!-- Paragrafo con spaziatura controllata tramite margin -->
                 <p class="text-muted" style="font-size: var(--fs-lg); margin: var(--space-md) 0 var(--space-xl) 0;">
                     Scopri la compatibilità musicale analizzando le tue playlist.
                 </p>
