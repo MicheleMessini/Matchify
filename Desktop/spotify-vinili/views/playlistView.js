@@ -125,10 +125,11 @@ const renderPlaylistDetailPage = (viewData) => {
   const { playlist, stats, view, page, contentData, totalPages } = viewData;
 
   const contentHtml = `
-    <div class="view-toggle" style="display: flex; gap: var(--space-md); margin-bottom: var(--space-xl); justify-content: center;">
+    <div class="view-toggle" style="display: flex; justify-content: center; gap: var(--space-md); margin-bottom: var(--space-xl);">
       <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Album</a>
       <a href="/playlist/${playlist.id}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Artisti</a>
     </div>
+
     <div class="grid">
       ${view === 'artist' 
         ? contentData.map(renderArtistCard).join('')
