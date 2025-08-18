@@ -330,32 +330,6 @@ const renderPlaylistDetailPage = (viewData) => {
     <div class="container">
       ${breadcrumb}
       
-      <header class="playlist-header">
-        <div class="playlist-info">
-          ${playlist.images?.[0]?.url ? `
-            <div class="playlist-cover">
-              ${renderImage(playlist.images[0].url, playlist.name, 'playlist-img')}
-            </div>
-          ` : ''}
-          <div class="playlist-details">
-            <h1 class="playlist-title">${escapeHtml(playlist.name)}</h1>
-            ${playlist.description ? `
-              <p class="playlist-description">${escapeHtml(playlist.description)}</p>
-            ` : ''}
-            <p class="playlist-owner">Di ${escapeHtml(playlist.owner?.display_name || CONFIG.DEFAULT_OWNER)}</p>
-            <div class="playlist-stats">
-              ${renderStatBadge('Brani', stats.totalTracks, '🎵')}
-              ${renderStatBadge('Durata', stats.durationText, '⏱️')}
-              ${renderStatBadge('Artisti', stats.uniqueArtistsCount, '👥')}
-              ${view === CONFIG.VIEWS.ALBUM && avgTracksPerAlbum > 0 
-                ? renderStatBadge('Media per album', avgTracksPerAlbum, '📊')
-                : ''
-              }
-            </div>
-          </div>
-        </div>
-      </header>
-      
       <main class="main-content">
         ${renderFilters(view, playlist.id)}
         
