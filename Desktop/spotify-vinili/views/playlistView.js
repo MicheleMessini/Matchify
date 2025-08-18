@@ -2,7 +2,6 @@ const { escapeHtml, renderPagination } = require('../utils/helpers');
 
 /**
  * Helper: Genera l'HTML per la card di una playlist.
- * Le info sono una sotto l'altra.
  */
 const renderPlaylistCard = (playlist) => {
   const trackCount = playlist.tracks?.total || 0;
@@ -73,7 +72,6 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Matchify - Le tue Playlist</title>
-      <!-- Link al foglio di stile dedicato -->
       <link rel="stylesheet" href="/playlists.css">
       <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
     </head>
@@ -105,7 +103,8 @@ const renderPlaylistDetailPage = (viewData) => {
 
   const contentHtml = `
     <div class="view-toggle">
-      <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' 'btn-secondary'}">Vista Album</a>
+      <!-- CORREZIONE: Aggiunti i due punti ':' mancanti nell'operatore ternario -->
+      <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Album</a>
       <a href="/playlist/${playlist.id}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Artisti</a>
     </div>
     <div class="grid">
@@ -126,7 +125,6 @@ const renderPlaylistDetailPage = (viewData) => {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Dettaglio: ${escapeHtml(playlist.name)}</title>
-      <!-- Link al foglio di stile dedicato -->
       <link rel="stylesheet" href="/playlists.css">
       <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
     </head>
