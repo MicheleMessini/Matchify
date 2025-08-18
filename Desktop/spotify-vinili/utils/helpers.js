@@ -1,10 +1,22 @@
+/**
+ * utils/helpers.js
+ * 
+ * Questo file contiene una collezione di funzioni di utilità riutilizzabili e costanti globali
+ * per l'intera applicazione, promuovendo un codice pulito e manutenibile.
+ */
+
 // =================================================================
-// --- Costanti Globali ---
+// --- Configurazione e Costanti Globali ---
 // =================================================================
 
-const PLAYLISTS_PER_PAGE = 6;
-const ALBUMS_PER_PAGE = 12;
-const MAX_ARTISTS_DISPLAYED = 50;
+const CONFIG = {
+  PLACEHOLDER_IMAGE: '/placeholder.png',
+  DEFAULT_OWNER: 'Sconosciuto',
+  PLAYLISTS_PER_PAGE: 6,
+  ALBUMS_PER_PAGE: 12,
+  MAX_ARTISTS_DISPLAYED: 50,
+  ITEMS_PER_PAGE: 20 // Valore aggiunto dal nuovo codice di playlistView
+};
 
 
 // =================================================================
@@ -34,7 +46,7 @@ function escapeHtml(str) {
 
 
 // =================================================================
-// --- Funzioni di Validazione degli Input ---
+// --- Funzioni di Validazione degli Input (opzionali se non usate) ---
 // =================================================================
 
 function validatePlaylistId(id) {
@@ -55,28 +67,15 @@ function validatePageNumber(page) {
 // --- Componenti di UI e Gestione Errori ---
 // =================================================================
 
-/**
- * **MODIFICATA**: Genera l'HTML per la paginazione a bottoni, più moderna e intuitiva.
- * Utilizza le classi CSS personalizzate `btn`, `disabled`, `page-info`.
- */
 const renderPagination = (currentPage, totalPages, baseUrl) => {
-  // Non mostrare nulla se c'è solo una pagina
-  if (totalPages <= 1) {
-    return '';
-  }
-
-  const prevPage = currentPage - 1;
-  const nextPage = currentPage + 1;
-
-  // Aggiunge la classe 'disabled' se i bottoni non devono essere cliccabili
+  if (totalPages <= 1) return '';
+  
   const prevDisabled = currentPage <= 1 ? 'disabled' : '';
   const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
-
-  // Imposta l'URL del link, o '#' se il bottone è disabilitato
-  const prevLink = !prevDisabled ? `${baseUrl}page=${prevPage}` : '#';
-  const nextLink = !nextDisabled ? `${baseUrl}page=${nextPage}` : '#';
-
-  // Restituisce la nuova struttura a bottoni
+  
+  const prevLink = !prevDisabled ? `${baseUrl}page=${currentPage - 1}` : '#';
+  const nextLink = !nextDisabled ? `${baseUrl}page=${currentPage + 1}` : '#';
+  
   return `
       <a href="${prevLink}" class="btn btn-secondary ${prevDisabled}">&larr; Precedente</a>
       <span class="page-info">Pagina ${currentPage} di ${totalPages}</span>
@@ -84,12 +83,8 @@ const renderPagination = (currentPage, totalPages, baseUrl) => {
   `;
 };
 
-/**
- * Gestisce la visualizzazione centralizzata degli errori. (Nessuna modifica necessaria qui)
- */
 function handleError(res, message, status = 500) {
   const escapedMessage = escapeHtml(message);
-  
   console.error(`[Error Handler] Status: ${status}, Message: ${message}`);
   
   const html = `
@@ -99,15 +94,17 @@ function handleError(res, message, status = 500) {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Errore ${status}</title>
-        <link rel="stylesheet" href="/styles.css" />
+        <!-- Usa lo stile della pagina di login per coerenza visiva -->
+        <link rel="stylesheet" href="/auth.css" />
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
       </head>
-      <body>
-        <div class="container text-center" style="padding-top: var(--space-2xl);">
-          <h1 class="error-title">Oops! Qualcosa è andato storto.</h1>
-          <p class="error-message text-muted">${escapedMessage}</p>
-          <a href="/" class="btn btn-primary mt-3">Torna alla Home</a>
-        </div>
+      <!-- Usa la classe di centratura della pagina di login -->
+      <body class="auth-page-body">
+        <main>
+          <h1 style="color: #f15e6c;">Oops! Errore ${status}</h1>
+          <p class="text-muted" style="margin-top: 1rem;">${escapedMessage}</p>
+          <a href="/" class="btn btn-primary" style="margin-top: 2rem;">Torna alla Home</a>
+        </main>
       </body>
     </html>
   `;
@@ -116,17 +113,25 @@ function handleError(res, message, status = 500) {
 }
 
 
-// Esporta tutte le funzioni e le costanti
+// =================================================================
+// --- Esportazioni del Modulo ---
+// =================================================================
+
 module.exports = {
-    PLAYLISTS_PER_PAGE,
-    ALBUMS_PER_PAGE,
-    MAX_ARTISTS_DISPLAYED,
+    // Oggetto di configurazione centralizzato
+    CONFIG,
+    
+    // Funzioni di utilità
     formatDuration,
     delay,
     escapeHtml,
+    
+    // Funzioni di validazione
     validatePlaylistId,
     validateAlbumId,
     validatePageNumber,
+    
+    // Funzioni di UI
     renderPagination,
     handleError
 };
