@@ -321,14 +321,8 @@ const renderPlaylistDetailPage = (viewData) => {
     `${stats.totalTracks} brani • ${stats.durationText} • ${stats.uniqueArtistsCount} artisti • Analizza la tua playlist Spotify`
   );
   
-  const breadcrumb = renderBreadcrumb([
-    { label: 'Playlist', href: '/' },
-    { label: playlist.name }
-  ]);
-  
   const content = `
     <div class="container">
-      ${breadcrumb}
       
       <main class="main-content">
         ${renderFilters(view, playlist.id)}
