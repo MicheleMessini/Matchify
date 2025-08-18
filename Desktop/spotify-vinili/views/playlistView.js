@@ -1,75 +1,153 @@
 const { escapeHtml, renderPagination } = require('../utils/helpers');
-const renderPlaylistCard = (playlist) => { /* ... */ };
-const renderArtistCard = (artist) => { /* ... */ };
-const renderAlbumCard = (album, playlistId) => { /* ... */ };
-const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
-  return `
-    <!DOCTYPE html><html lang="it"><head>
-      <title>Matchify - Le tue Playlist</title>
-      <link rel="stylesheet" href="/playlists.css">
-    </head><body>
-      <div class="container">
-        <header class="text-center" style="margin-bottom: var(--space-xl);"><h1>Le Tue Playlist</h1></header>
-        <main>
-          ${playlists.length ? `<div class="playlist-grid">${playlists.map(renderPlaylistCard).join('')}</div>` : `<p class="text-center">Nessuna playlist trovata.</p>`}
-          <nav class="pagination-nav">${renderPagination(currentPage, totalPages, '/?')}</nav>
-        </main>
-      </div>
-    </body></html>
-  `;
-};
-const renderPlaylistDetailPage = (viewData) => {
-  return `
-    <!DOCTYPE html><html lang="it"><head>
-      <title>Dettaglio: ${escapeHtml(viewData.playlist.name)}</title>
-      <link rel="stylesheet" href="/playlists.css">
-    </head><body>
-      <div class="container">
-        <header class="text-center" style="margin-bottom: var(--space-xl);">
-          <h1>${escapeHtml(viewData.playlist.name)}</h1>
-          <p class="text-muted">${escapeHtml(viewData.playlist.description || `Di ${escapeHtml(viewData.playlist.owner?.display_name || 'Sconosciuto')}`)}</p>
-        </header>
-        <main>${contentHtml}</main>
-        <footer class="text-center" style="margin-top: var(--space-xl);"><a href="/" class="btn btn-secondary">&larr; Torna alle playlist</a></footer>
-      </div>
-    </body></html>
-  `;
-};
-module.exports = { renderPlaylistsPage, renderPlaylistDetailPage };
-```*(Ho abbreviato `playlistView.js` ma il concetto chiave è cambiare il link CSS)*
 
-#### `views/albumView.js` (AGGIORNATO)
-```javascript
-const { escapeHtml, formatDuration } = require('../utils/helpers');
-const renderAlbumDetailPage = (viewData) => {
-  // ... (tutta la tua logica JS qui) ...
-  const renderTrack = (track) => { /* ... */ };
+/**
+ * Helper: Genera l'HTML per la card di una playlist.
+ * Le info sono una sotto l'altra.
+ */
+const renderPlaylistCard = (playlist) => {
+  const trackCount = playlist.tracks?.total || 0;
+  
+  return `
+    <div class="card">
+      <a href="/playlist/${escapeHtml(playlist.id)}">
+        <div class="card-img-wrapper">
+          <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
+               alt="${escapeHtml(playlist.name)}" 
+               class="card-img"
+               onerror="this.src='/placeholder.png'">
+        </div>
+        <div class="card-content">
+          <h4 class="card-title">${escapeHtml(playlist.name)}</h4>
+          <p class="card-text text-muted">
+            Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}
+            <br>
+            ${trackCount} tracce
+          </p>
+        </div>
+      </a>
+    </div>
+  `;
+};
+
+/**
+ * Helper: Genera l'HTML per la card di un artista.
+ */
+const renderArtistCard = (artist) => `
+  <div class="card">
+    <div class="card-img-wrapper">
+      <img src="${escapeHtml(artist.image)}" alt="${escapeHtml(artist.name)}" class="card-img" onerror="this.src='/placeholder.png'">
+    </div>
+    <div class="card-content">
+      <h4 class="card-title">${escapeHtml(artist.name)}</h4>
+      <p class="card-text text-muted">${artist.trackCount} brani in questa playlist</p>
+    </div>
+  </div>
+`;
+
+/**
+ * Helper: Genera l'HTML per la card di un album.
+ */
+const renderAlbumCard = (album, playlistId) => `
+  <div class="card">
+    <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}">
+      <div class="card-img-wrapper">
+        <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img" onerror="this.src='/placeholder.png'">
+      </div>
+      <div class="card-content">
+        <h4 class="card-title">${escapeHtml(album.name)}</h4>
+        <p class="card-text text-muted">${escapeHtml(album.artist)}</p>
+        <p class="card-text text-primary">${album.tracksPresent} / ${album.totalTracks} brani</p>
+      </div>
+    </a>
+  </div>
+`;
+
+/**
+ * Funzione principale: Genera l'HTML per la pagina di elenco delle playlist.
+ */
+const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
   return `
     <!DOCTYPE html>
     <html lang="it">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Album: ${escapeHtml(viewData.album.name)}</title>
-      <link rel="stylesheet" href="/album.css">
+      <title>Matchify - Le tue Playlist</title>
+      <!-- Link al foglio di stile dedicato -->
+      <link rel="stylesheet" href="/playlists.css">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
     </head>
     <body>
       <div class="container">
-        <header class="album-header">
-          <img src="${escapeHtml(viewData.album.images?.[0]?.url || '/placeholder.png')}" alt="..." class="album-cover">
-          <div>
-            <h1>${escapeHtml(viewData.album.name)}</h1>
-            <p class="text-muted">di ${viewData.album.artists.map(a => escapeHtml(a.name)).join(', ')}</p>
-          </div>
+        <header class="text-center" style="margin-bottom: var(--space-xl);">
+          <h1>Le Tue Playlist</h1>
         </header>
         <main>
-          <h3>Tracklist</h3>
-          <ol class="tracklist">${viewData.album.tracks.items.map(renderTrack).join('')}</ol>
+          ${playlists.length > 0
+            ? `<div class="playlist-grid">${playlists.map(renderPlaylistCard).join('')}</div>`
+            : `<p class="text-center">Nessuna playlist trovata.</p>`
+          }
+          <nav class="pagination-nav">
+            ${renderPagination(currentPage, totalPages, '/?')}
+          </nav>
         </main>
-        <footer class="text-center"><a href="javascript:history.back()" class="btn btn-secondary">&larr; Indietro</a></footer>
       </div>
     </body>
     </html>
   `;
 };
-module.exports = { renderAlbumDetailPage };
+
+/**
+ * Funzione principale: Genera l'HTML per la pagina di dettaglio di una playlist.
+ */
+const renderPlaylistDetailPage = (viewData) => {
+  const { playlist, stats, view, page, contentData, totalPages } = viewData;
+
+  const contentHtml = `
+    <div class="view-toggle">
+      <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' 'btn-secondary'}">Vista Album</a>
+      <a href="/playlist/${playlist.id}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Artisti</a>
+    </div>
+    <div class="grid">
+      ${view === 'artist' 
+        ? contentData.map(renderArtistCard).join('')
+        : contentData.map(album => renderAlbumCard(album, playlist.id)).join('')
+      }
+    </div>
+    <nav class="pagination-nav">
+      ${view === 'album' ? renderPagination(page, totalPages, `/playlist/${playlist.id}?view=album&`) : ''}
+    </nav>
+  `;
+
+  return `
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Dettaglio: ${escapeHtml(playlist.name)}</title>
+      <!-- Link al foglio di stile dedicato -->
+      <link rel="stylesheet" href="/playlists.css">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
+    </head>
+    <body>
+      <div class="container">
+        <header class="text-center" style="margin-bottom: var(--space-xl);">
+            <h1>${escapeHtml(playlist.name)}</h1>
+            <p class="text-muted">${escapeHtml(playlist.description || `Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}`)}</p>
+            <p class="text-primary">${stats.totalTracks} brani &bull; ${stats.durationText} &bull; ${stats.uniqueArtistsCount} artisti unici</p>
+        </header>
+        <main>${contentHtml}</main>
+        <footer class="text-center" style="margin-top: var(--space-xl);">
+          <a href="/" class="btn btn-secondary">&larr; Torna a tutte le playlist</a>
+        </footer>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+module.exports = {
+  renderPlaylistsPage,
+  renderPlaylistDetailPage
+};
