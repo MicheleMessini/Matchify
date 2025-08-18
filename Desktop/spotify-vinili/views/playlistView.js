@@ -275,9 +275,6 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
             <span class="logo">🎵</span> Le Tue Playlist
           </h1>
           ${hasPlaylists ? `
-            <p class="page-subtitle">
-              Hai ${totalPlaylists} playlist${currentPage > 1 ? ` • Pagina ${currentPage} di ${totalPages}` : ''}
-            </p>
           ` : ''}
         </div>
       </header>
@@ -300,10 +297,7 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
           : renderEmptyState('playlist')
         }
       </main>
-      
-      <footer class="page-footer">
-        <p class="footer-text">Matchify © 2024 • Powered by Spotify API</p>
-      </footer>
+
     </div>
   `;
   
