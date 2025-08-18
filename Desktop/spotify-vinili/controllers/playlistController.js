@@ -1,6 +1,7 @@
 const { makeSpotifyRequest } = require('../services/spotifyService');
 const appCache = require('../utils/cache');
 const {
+    // Importa le costanti direttamente, come corretto in helpers.js
     PLAYLISTS_PER_PAGE,
     ALBUMS_PER_PAGE,
     MAX_ARTISTS_DISPLAYED,
@@ -16,6 +17,9 @@ const PLAYLIST_RATE_LIMIT_DELAY = 100;
 
 // --- Funzioni Helper Interne ---
 
+/**
+ * Recupera *tutte* le playlist di un utente, gestendo la paginazione dell'API di Spotify.
+ */
 const fetchAllUserPlaylists = async (accessToken) => {
   let playlists = [];
   let nextUrl = 'https://api.spotify.com/v1/me/playlists?limit=50';
@@ -30,6 +34,9 @@ const fetchAllUserPlaylists = async (accessToken) => {
   return playlists;
 };
 
+/**
+ * Recupera *tutte* le tracce di una singola playlist.
+ */
 const fetchAllPlaylistTracks = async (playlistId, accessToken) => {
   let tracks = [];
   let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50&fields=items(track(duration_ms,name,id,artists,album(id,name,images,total_tracks,artists),uri)),next,total`;
@@ -47,6 +54,9 @@ const fetchAllPlaylistTracks = async (playlistId, accessToken) => {
 
 // --- Funzioni Esportate ---
 
+/**
+ * Calcola la durata totale di una playlist.
+ */
 const calculatePlaylistDuration = async (playlist, accessToken) => {
   const cacheKey = `duration:${playlist.id}`;
   const cachedResult = appCache.get(cacheKey);
@@ -65,6 +75,9 @@ const calculatePlaylistDuration = async (playlist, accessToken) => {
 };
 
 
+/**
+ * Gestore della rotta per la pagina principale che elenca le playlist dell'utente.
+ */
 const getPlaylistsPage = async (req, res) => {
   const accessToken = req.session.accessToken;
   if (!accessToken) {
@@ -92,10 +105,17 @@ const getPlaylistsPage = async (req, res) => {
       req.session.destroy();
       return res.redirect('/start');
     }
+    if (err.message === 'RATE_LIMITED') {
+      return handleError(res, 'Troppe richieste. Riprova tra qualche minuto.', 429);
+    }
     handleError(res, 'Impossibile recuperare le playlist. Riprova più tardi.');
   }
 };
 
+
+/**
+ * Gestore della rotta per la pagina di dettaglio di una singola playlist.
+ */
 const getPlaylistDetailPage = async (req, res) => {
   const { id: playlistId } = req.params;
   const accessToken = req.session.accessToken;
@@ -158,7 +178,12 @@ const getPlaylistDetailPage = async (req, res) => {
 
         if (!albumsInPlaylist[album.id]) {
           albumsInPlaylist[album.id] = {
-            id: album.id, name: album.name, image: album.images?.[0]?.url || '/placeholder.png', artist: album.artists.map(a => a.name).join(', '), totalTracks: album.total_tracks, tracksPresent: 0
+            id: album.id,
+            name: album.name,
+            image: album.images?.[0]?.url || '/placeholder.png',
+            artist: album.artists.map(a => a.name).join(', '),
+            totalTracks: album.total_tracks,
+            tracksPresent: 0
           };
         }
         albumsInPlaylist[album.id].tracksPresent++;
@@ -168,8 +193,6 @@ const getPlaylistDetailPage = async (req, res) => {
         album.percentage = album.totalTracks > 0 ? Math.round((album.tracksPresent / album.totalTracks) * 100) : 0;
       });
       
-      // --- MODIFICA APPLICATA QUI ---
-      // Ora ordina per percentuale (decrescente), poi per numero di tracce e infine per nome.
       const sortedAlbums = Object.values(albumsInPlaylist).sort((a, b) => b.percentage - a.percentage || b.tracksPresent - a.tracksPresent || a.name.localeCompare(b.name));
       
       totalAlbumsInPlaylist = sortedAlbums.length;
@@ -192,9 +215,12 @@ const getPlaylistDetailPage = async (req, res) => {
   } catch (err) {
     console.error(`Error fetching playlist details for ${playlistId}:`, err.message);
     if (err.message === 'UNAUTHORIZED') {
-      req.session.destroy(); return res.redirect('/start');
+      req.session.destroy();
+      return res.redirect('/start');
     }
-    if (err.response?.status === 404) return handleError(res, 'Playlist non trovata', 404);
+    if (err.response?.status === 404) {
+      return handleError(res, 'Playlist non trovata', 404);
+    }
     handleError(res, "Errore nel recuperare i dettagli della playlist.");
   }
 };
