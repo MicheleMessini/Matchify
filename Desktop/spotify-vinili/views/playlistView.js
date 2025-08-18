@@ -183,14 +183,14 @@ const renderFilters = (currentView, playlistId) => `
          role="tab"
          aria-selected="${currentView !== CONFIG.VIEWS.ARTIST}"
          aria-label="Mostra vista album">
-        <span class="icon">📀</span> Vista Album
+        Vista Album
       </a>
       <a href="/playlist/${playlistId}?view=artist" 
          class="btn ${currentView === CONFIG.VIEWS.ARTIST ? 'btn-primary active' : 'btn-secondary'}"
          role="tab"
          aria-selected="${currentView === CONFIG.VIEWS.ARTIST}"
          aria-label="Mostra vista artisti">
-        <span class="icon">👤</span> Vista Artisti
+        Vista Artisti
       </a>
     </div>
   </div>
