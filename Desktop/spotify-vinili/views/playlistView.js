@@ -1,151 +1,414 @@
 const { escapeHtml, renderPagination } = require('../utils/helpers');
 
 /**
- * Helper: Genera l'HTML per la card di una playlist.
+ * Configurazione e costanti
+ */
+const CONFIG = {
+  PLACEHOLDER_IMAGE: '/placeholder.png',
+  DEFAULT_OWNER: 'Sconosciuto',
+  ITEMS_PER_PAGE: 20, // Assumendo un valore di default
+  VIEWS: {
+    ALBUM: 'album',
+    ARTIST: 'artist'
+  }
+};
+
+/**
+ * Helper: Genera attributi data-* per lazy loading e analytics
+ */
+const generateDataAttributes = (type, id, extra = {}) => {
+  const attrs = [`data-type="${type}"`, `data-id="${id}"`];
+  Object.entries(extra).forEach(([key, value]) => {
+    attrs.push(`data-${key}="${escapeHtml(value)}"`);
+  });
+  return attrs.join(' ');
+};
+
+/**
+ * Helper: Genera meta tag SEO
+ */
+const generateMetaTags = (title, description) => `
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta name="description" content="${escapeHtml(description)}">
+`;
+
+/**
+ * Helper: Genera l'HTML per l'immagine con lazy loading
+ */
+const renderImage = (src, alt, className = 'card-img') => `
+  <img 
+    src="${escapeHtml(src || CONFIG.PLACEHOLDER_IMAGE)}" 
+    alt="${escapeHtml(alt)}" 
+    class="${className}"
+    loading="lazy"
+    onerror="this.src='${CONFIG.PLACEHOLDER_IMAGE}'; this.onerror=null;"
+  >
+`;
+
+/**
+ * Helper: Formatta il numero di tracce con plurale corretto
+ */
+const formatTrackCount = (count) => {
+  if (count === 0) return 'Nessuna traccia';
+  if (count === 1) return '1 traccia';
+  return `${count} tracce`;
+};
+
+/**
+ * Helper: Genera badge per statistiche
+ */
+const renderStatBadge = (label, value, icon = '') => `
+  <span class="stat-badge">
+    ${icon ? `<span class="stat-icon">${icon}</span>` : ''}
+    <span class="stat-label">${escapeHtml(label)}:</span>
+    <span class="stat-value">${escapeHtml(value)}</span>
+  </span>
+`;
+
+/**
+ * Helper: Genera l'HTML per la card di una playlist con miglioramenti
  */
 const renderPlaylistCard = (playlist) => {
   const trackCount = playlist.tracks?.total || 0;
+  const imageUrl = playlist.images?.[0]?.url || CONFIG.PLACEHOLDER_IMAGE;
+  const ownerName = playlist.owner?.display_name || CONFIG.DEFAULT_OWNER;
   
   return `
-    <div class="card">
-      <a href="/playlist/${escapeHtml(playlist.id)}">
+    <article class="card playlist-card" ${generateDataAttributes('playlist', playlist.id, { tracks: trackCount })}>
+      <a href="/playlist/${escapeHtml(playlist.id)}" class="card-link" aria-label="Vai a ${escapeHtml(playlist.name)}">
         <div class="card-img-wrapper">
-          <img src="${escapeHtml(playlist.images?.[0]?.url || '/placeholder.png')}" 
-               alt="${escapeHtml(playlist.name)}" 
-               class="card-img"
-               onerror="this.src='/placeholder.png'">
+          ${renderImage(imageUrl, playlist.name)}
+          ${trackCount > 0 ? `<span class="card-badge">${trackCount}</span>` : ''}
         </div>
         <div class="card-content">
-          <h4 class="card-title">${escapeHtml(playlist.name)}</h4>
-          <p class="card-text text-muted">
-            Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}
-            <br>
-            ${trackCount} tracce
-          </p>
+          <h3 class="card-title">${escapeHtml(playlist.name)}</h3>
+          <div class="card-meta">
+            <p class="card-owner">Di ${escapeHtml(ownerName)}</p>
+            <p class="card-stats">${formatTrackCount(trackCount)}</p>
+          </div>
         </div>
       </a>
-    </div>
+    </article>
   `;
 };
 
 /**
- * Helper: Genera l'HTML per la card di un artista.
+ * Helper: Genera l'HTML per la card di un artista con miglioramenti
  */
 const renderArtistCard = (artist) => `
-  <div class="card">
+  <article class="card artist-card" ${generateDataAttributes('artist', artist.id || artist.name)}>
     <div class="card-img-wrapper">
-      <img src="${escapeHtml(artist.image)}" alt="${escapeHtml(artist.name)}" class="card-img" onerror="this.src='/placeholder.png'">
+      ${renderImage(artist.image, artist.name)}
+      <div class="card-overlay">
+        <span class="play-icon">▶</span>
+      </div>
     </div>
     <div class="card-content">
-      <h4 class="card-title">${escapeHtml(artist.name)}</h4>
-      <p class="card-text text-muted">${artist.trackCount} brani in questa playlist</p>
+      <h3 class="card-title">${escapeHtml(artist.name)}</h3>
+      <p class="card-stats">
+        <span class="track-count">${artist.trackCount} ${artist.trackCount === 1 ? 'brano' : 'brani'}</span>
+        in questa playlist
+      </p>
     </div>
-  </div>
+  </article>
 `;
 
 /**
- * Helper: Genera l'HTML per la card di un album.
+ * Helper: Genera l'HTML per la card di un album con progress bar
  */
-const renderAlbumCard = (album, playlistId) => `
-  <div class="card">
-    <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}">
-      <div class="card-img-wrapper">
-        <img src="${escapeHtml(album.image)}" alt="${escapeHtml(album.name)}" class="card-img" onerror="this.src='/placeholder.png'">
-      </div>
-      <div class="card-content">
-        <h4 class="card-title">${escapeHtml(album.name)}</h4>
-        <p class="card-text text-muted">${escapeHtml(album.artist)}</p>
-        <p class="card-text text-primary">${album.tracksPresent} / ${album.totalTracks} brani</p>
-      </div>
-    </a>
-  </div>
-`;
-
-/**
- * Funzione principale: Genera l'HTML per la pagina di elenco delle playlist.
- */
-const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
+const renderAlbumCard = (album, playlistId) => {
+  const completionPercentage = Math.round((album.tracksPresent / album.totalTracks) * 100);
+  const isComplete = album.tracksPresent === album.totalTracks;
+  
   return `
-    <!DOCTYPE html>
-    <html lang="it">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Matchify - Le tue Playlist</title>
-      <link rel="stylesheet" href="/playlists.css">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
-    </head>
-    <body>
-      <div class="container">
-        <header class="text-center" style="margin-bottom: var(--space-xl);">
-          <h1>Le Tue Playlist</h1>
-        </header>
-        <main>
-          ${playlists.length > 0
-            ? `<div class="playlist-grid">${playlists.map(renderPlaylistCard).join('')}</div>`
-            : `<p class="text-center">Nessuna playlist trovata.</p>`
-          }
-          <nav class="pagination-nav">
-            ${renderPagination(currentPage, totalPages, '/?')}
-          </nav>
-        </main>
-      </div>
-    </body>
-    </html>
+    <article class="card album-card ${isComplete ? 'album-complete' : ''}" ${generateDataAttributes('album', album.id, { completion: completionPercentage })}>
+      <a href="/album/${escapeHtml(album.id)}?playlistId=${escapeHtml(playlistId)}" class="card-link" aria-label="Vai all'album ${escapeHtml(album.name)}">
+        <div class="card-img-wrapper">
+          ${renderImage(album.image, album.name)}
+          ${isComplete ? '<span class="complete-badge">✓</span>' : ''}
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">${escapeHtml(album.name)}</h3>
+          <p class="card-artist">${escapeHtml(album.artist)}</p>
+          <div class="track-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${completionPercentage}%"></div>
+            </div>
+            <p class="progress-text">
+              <span class="tracks-present">${album.tracksPresent}</span> / 
+              <span class="tracks-total">${album.totalTracks}</span> brani
+              <span class="percentage">(${completionPercentage}%)</span>
+            </p>
+          </div>
+        </div>
+      </a>
+    </article>
   `;
 };
 
 /**
- * Funzione principale: Genera l'HTML per la pagina di dettaglio di una playlist.
+ * Helper: Genera navigation breadcrumb
+ */
+const renderBreadcrumb = (items) => {
+  const breadcrumbItems = items.map((item, index) => {
+    const isLast = index === items.length - 1;
+    return `
+      <li class="breadcrumb-item ${isLast ? 'active' : ''}">
+        ${isLast 
+          ? `<span>${escapeHtml(item.label)}</span>`
+          : `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>`
+        }
+      </li>
+    `;
+  }).join('');
+  
+  return `
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        ${breadcrumbItems}
+      </ol>
+    </nav>
+  `;
+};
+
+/**
+ * Helper: Genera filtri e ordinamento
+ */
+const renderFilters = (currentView, playlistId) => `
+  <div class="filters-container">
+    <div class="view-toggle" role="tablist">
+      <a href="/playlist/${playlistId}?view=album" 
+         class="btn ${currentView !== CONFIG.VIEWS.ARTIST ? 'btn-primary active' : 'btn-secondary'}"
+         role="tab"
+         aria-selected="${currentView !== CONFIG.VIEWS.ARTIST}"
+         aria-label="Mostra vista album">
+        <span class="icon">📀</span> Vista Album
+      </a>
+      <a href="/playlist/${playlistId}?view=artist" 
+         class="btn ${currentView === CONFIG.VIEWS.ARTIST ? 'btn-primary active' : 'btn-secondary'}"
+         role="tab"
+         aria-selected="${currentView === CONFIG.VIEWS.ARTIST}"
+         aria-label="Mostra vista artisti">
+        <span class="icon">👤</span> Vista Artisti
+      </a>
+    </div>
+  </div>
+`;
+
+/**
+ * Helper: Genera messaggio vuoto personalizzato
+ */
+const renderEmptyState = (type = 'playlist') => {
+  const messages = {
+    playlist: {
+      title: 'Nessuna playlist trovata',
+      description: 'Non hai ancora playlist salvate su Spotify.',
+      action: 'Crea una nuova playlist su Spotify per iniziare!'
+    },
+    album: {
+      title: 'Nessun album trovato',
+      description: 'Questa playlist non contiene album.',
+      action: 'Aggiungi brani alla playlist per vedere gli album.'
+    },
+    artist: {
+      title: 'Nessun artista trovato',
+      description: 'Questa playlist non contiene artisti.',
+      action: 'Aggiungi brani alla playlist per vedere gli artisti.'
+    }
+  };
+  
+  const msg = messages[type] || messages.playlist;
+  
+  return `
+    <div class="empty-state">
+      <div class="empty-state-icon">📭</div>
+      <h2 class="empty-state-title">${msg.title}</h2>
+      <p class="empty-state-description">${msg.description}</p>
+      <p class="empty-state-action">${msg.action}</p>
+    </div>
+  `;
+};
+
+/**
+ * Helper: Genera layout HTML base
+ */
+const generateBaseLayout = (title, content, additionalHead = '') => `
+  <!DOCTYPE html>
+  <html lang="it">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(title)}</title>
+    <link rel="stylesheet" href="/playlists.css">
+    <link rel="preconnect" href="https://i.scdn.co">
+    <link rel="dns-prefetch" href="https://i.scdn.co">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; script-src 'self';">
+    ${additionalHead}
+  </head>
+  <body>
+    <div class="app-container">
+      ${content}
+    </div>
+    <script defer src="/app.js"></script>
+  </body>
+  </html>
+`;
+
+/**
+ * Funzione principale: Genera l'HTML per la pagina di elenco delle playlist
+ */
+const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
+  const hasPlaylists = playlists.length > 0;
+  const totalPlaylists = playlists.length + (currentPage - 1) * CONFIG.ITEMS_PER_PAGE;
+  
+  const metaTags = generateMetaTags(
+    'Matchify - Le tue Playlist',
+    `Esplora le tue ${totalPlaylists} playlist Spotify con analisi dettagliate di album e artisti`
+  );
+  
+  const content = `
+    <div class="container">
+      <header class="page-header">
+        <div class="header-content">
+          <h1 class="page-title">
+            <span class="logo">🎵</span> Le Tue Playlist
+          </h1>
+          ${hasPlaylists ? `
+            <p class="page-subtitle">
+              Hai ${totalPlaylists} playlist${currentPage > 1 ? ` • Pagina ${currentPage} di ${totalPages}` : ''}
+            </p>
+          ` : ''}
+        </div>
+      </header>
+      
+      <main class="main-content">
+        ${hasPlaylists
+          ? `
+            <section class="playlist-section" aria-label="Lista playlist">
+              <div class="playlist-grid">
+                ${playlists.map(renderPlaylistCard).join('')}
+              </div>
+            </section>
+            
+            ${totalPages > 1 ? `
+              <nav class="pagination-nav" aria-label="Navigazione pagine">
+                ${renderPagination(currentPage, totalPages, '/?')}
+              </nav>
+            ` : ''}
+          `
+          : renderEmptyState('playlist')
+        }
+      </main>
+      
+      <footer class="page-footer">
+        <p class="footer-text">Matchify © 2024 • Powered by Spotify API</p>
+      </footer>
+    </div>
+  `;
+  
+  return generateBaseLayout('Matchify - Le tue Playlist', content, metaTags);
+};
+
+/**
+ * Funzione principale: Genera l'HTML per la pagina di dettaglio di una playlist
  */
 const renderPlaylistDetailPage = (viewData) => {
   const { playlist, stats, view, page, contentData, totalPages } = viewData;
-
-  const contentHtml = `
-    <div class="view-toggle">
-      <!-- CORREZIONE: Aggiunti i due punti ':' mancanti nell'operatore ternario -->
-      <a href="/playlist/${playlist.id}?view=album" class="btn ${view !== 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Album</a>
-      <a href="/playlist/${playlist.id}?view=artist" class="btn ${view === 'artist' ? 'btn-primary' : 'btn-secondary'}">Vista Artisti</a>
+  const hasContent = contentData && contentData.length > 0;
+  
+  // Calcola statistiche aggiuntive
+  const avgTracksPerAlbum = view === CONFIG.VIEWS.ALBUM && contentData.length > 0
+    ? Math.round(stats.totalTracks / contentData.length)
+    : 0;
+  
+  const metaTags = generateMetaTags(
+    `${playlist.name} - Matchify`,
+    `${stats.totalTracks} brani • ${stats.durationText} • ${stats.uniqueArtistsCount} artisti • Analizza la tua playlist Spotify`
+  );
+  
+  const breadcrumb = renderBreadcrumb([
+    { label: 'Playlist', href: '/' },
+    { label: playlist.name }
+  ]);
+  
+  const content = `
+    <div class="container">
+      ${breadcrumb}
+      
+      <header class="playlist-header">
+        <div class="playlist-info">
+          ${playlist.images?.[0]?.url ? `
+            <div class="playlist-cover">
+              ${renderImage(playlist.images[0].url, playlist.name, 'playlist-img')}
+            </div>
+          ` : ''}
+          <div class="playlist-details">
+            <h1 class="playlist-title">${escapeHtml(playlist.name)}</h1>
+            ${playlist.description ? `
+              <p class="playlist-description">${escapeHtml(playlist.description)}</p>
+            ` : ''}
+            <p class="playlist-owner">Di ${escapeHtml(playlist.owner?.display_name || CONFIG.DEFAULT_OWNER)}</p>
+            <div class="playlist-stats">
+              ${renderStatBadge('Brani', stats.totalTracks, '🎵')}
+              ${renderStatBadge('Durata', stats.durationText, '⏱️')}
+              ${renderStatBadge('Artisti', stats.uniqueArtistsCount, '👥')}
+              ${view === CONFIG.VIEWS.ALBUM && avgTracksPerAlbum > 0 
+                ? renderStatBadge('Media per album', avgTracksPerAlbum, '📊')
+                : ''
+              }
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <main class="main-content">
+        ${renderFilters(view, playlist.id)}
+        
+        ${hasContent
+          ? `
+            <section class="content-section" aria-label="${view === CONFIG.VIEWS.ARTIST ? 'Lista artisti' : 'Lista album'}">
+              <div class="grid ${view}-grid">
+                ${view === CONFIG.VIEWS.ARTIST 
+                  ? contentData.map(renderArtistCard).join('')
+                  : contentData.map(album => renderAlbumCard(album, playlist.id)).join('')
+                }
+              </div>
+            </section>
+            
+            ${view === CONFIG.VIEWS.ALBUM && totalPages > 1 ? `
+              <nav class="pagination-nav" aria-label="Navigazione pagine">
+                ${renderPagination(page, totalPages, `/playlist/${playlist.id}?view=album&`)}
+              </nav>
+            ` : ''}
+          `
+          : renderEmptyState(view)
+        }
+      </main>
+      
+      <footer class="page-footer">
+        <div class="footer-actions">
+          <a href="/" class="btn btn-secondary btn-back">
+            <span class="btn-icon">←</span> Torna alle playlist
+          </a>
+        </div>
+      </footer>
     </div>
-    <div class="grid">
-      ${view === 'artist' 
-        ? contentData.map(renderArtistCard).join('')
-        : contentData.map(album => renderAlbumCard(album, playlist.id)).join('')
-      }
-    </div>
-    <nav class="pagination-nav">
-      ${view === 'album' ? renderPagination(page, totalPages, `/playlist/${playlist.id}?view=album&`) : ''}
-    </nav>
   `;
-
-  return `
-    <!DOCTYPE html>
-    <html lang="it">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Dettaglio: ${escapeHtml(playlist.name)}</title>
-      <link rel="stylesheet" href="/playlists.css">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data: https:;">
-    </head>
-    <body>
-      <div class="container">
-        <header class="text-center" style="margin-bottom: var(--space-xl);">
-            <h1>${escapeHtml(playlist.name)}</h1>
-            <p class="text-muted">${escapeHtml(playlist.description || `Di ${escapeHtml(playlist.owner?.display_name || 'Sconosciuto')}`)}</p>
-            <p class="text-primary">${stats.totalTracks} brani &bull; ${stats.durationText} &bull; ${stats.uniqueArtistsCount} artisti unici</p>
-        </header>
-        <main>${contentHtml}</main>
-        <footer class="text-center" style="margin-top: var(--space-xl);">
-          <a href="/" class="btn btn-secondary">&larr; Torna a tutte le playlist</a>
-        </footer>
-      </div>
-    </body>
-    </html>
-  `;
+  
+  return generateBaseLayout(`${playlist.name} - Matchify`, content, metaTags);
 };
 
 module.exports = {
   renderPlaylistsPage,
-  renderPlaylistDetailPage
+  renderPlaylistDetailPage,
+  // Esporta anche gli helper per test unitari
+  renderPlaylistCard,
+  renderArtistCard,
+  renderAlbumCard,
+  renderBreadcrumb,
+  renderFilters,
+  renderEmptyState,
+  formatTrackCount,
+  CONFIG
 };
