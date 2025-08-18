@@ -1,0 +1,44 @@
+/* ===============================
+   STILI PER ALBUMVIEW
+   =============================== */
+:root {
+    --spotify-green: #1db954;
+    --spotify-green-light: #1ed760;
+    --spotify-black: #191414;
+    --spotify-dark: #121212;
+    --text-primary: #f7f7f7;
+    --text-secondary: #b3b3b3;
+    --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --fs-lg: clamp(1.125rem, 1rem + 0.625vw, 1.5rem);
+    --fs-3xl: clamp(2.5rem, 2rem + 2.5vw, 3.5rem);
+    --fw-bold: 700;
+    --space-md: 1rem;
+    --space-xl: 2rem;
+    --radius-full: 9999px;
+}
+html { box-sizing: border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: inherit; }
+body { font-family: var(--font-primary); background: linear-gradient(180deg, var(--spotify-dark) 0%, var(--spotify-black) 100%); color: var(--text-primary); line-height: 1.6; }
+a { text-decoration: none; color: inherit; }
+.container { max-width: 1200px; margin-inline: auto; padding: var(--space-xl) var(--space-lg); }
+.text-center { text-align: center; }
+.text-muted { color: var(--text-secondary); }
+.text-primary { color: var(--spotify-green); }
+h1 { font-size: var(--fs-3xl); font-weight: var(--fw-bold); }
+h3 { font-size: 1.75rem; font-weight: var(--fw-bold); margin-bottom: 1rem; }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.8rem var(--space-lg); border: 1px solid transparent; border-radius: var(--radius-full); font-size: 1rem; font-weight: var(--fw-bold); transition: transform 0.2s; }
+.btn:hover { transform: scale(1.05); }
+.btn-secondary { border-color: var(--gray-500); }
+.btn-secondary:hover { border-color: var(--text-primary); background: var(--gray-700); }
+
+/* Stili specifici per la pagina album */
+.album-header { display: flex; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl); flex-wrap: wrap; }
+.album-cover { width: 150px; height: 150px; border-radius: var(--radius-base); object-fit: cover; }
+.tracklist { list-style: none; }
+.track-item { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: var(--space-lg); padding: 0.75rem; border-radius: var(--radius-base); transition: background-color 0.2s; }
+.track-item:hover { background: rgba(255, 255, 255, 0.08); }
+.track-item.playing { background: rgba(29, 185, 84, 0.15); color: var(--spotify-green-light); }
+.track-item.playing .track-name, .track-item.playing .track-number { color: var(--spotify-green-light); }
+.track-number { color: var(--text-secondary); font-weight: var(--fw-medium); text-align: center; }
+.track-name { font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track-duration { color: var(--text-secondary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
