@@ -118,8 +118,13 @@ function handleError(res, message, status = 500) {
 // =================================================================
 
 module.exports = {
-    // Oggetto di configurazione centralizzato
+    // Esporta l'oggetto CONFIG che contiene la maggior parte delle costanti
     CONFIG,
+
+    // Esporta anche le costanti che erano definite globalmente, per compatibilità
+    PLAYLISTS_PER_PAGE: CONFIG.PLAYLISTS_PER_PAGE,
+    ALBUMS_PER_PAGE: CONFIG.ALBUMS_PER_PAGE,
+    MAX_ARTISTS_DISPLAYED: CONFIG.MAX_ARTISTS_DISPLAYED,
     
     // Funzioni di utilità
     formatDuration,
