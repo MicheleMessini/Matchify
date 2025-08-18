@@ -1,55 +1,38 @@
 const { makeSpotifyRequest } = require('../services/spotifyService');
 const appCache = require('../utils/cache');
 const {
+    // Importa le costanti direttamente, come corretto in helpers.js
+    PLAYLISTS_PER_PAGE,
+    ALBUMS_PER_PAGE,
+    MAX_ARTISTS_DISPLAYED,
     validatePageNumber,
     validatePlaylistId,
     handleError,
     delay,
-    PLAYLISTS_PER_PAGE,
-    ALBUMS_PER_PAGE,
-    MAX_ARTISTS_DISPLAYED,
     formatDuration
 } = require('../utils/helpers');
 const { renderPlaylistsPage, renderPlaylistDetailPage } = require('../views/playlistView');
 
-// --- Funzioni Helper Interne al Controller ---
-
 const PLAYLIST_RATE_LIMIT_DELAY = 100;
 
+// --- Funzioni Helper Interne ---
+
 /**
- * Recupera *tutte* le playlist di un utente, con LOG DI DEBUG.
+ * Recupera *tutte* le playlist di un utente, gestendo la paginazione dell'API di Spotify.
  */
 const fetchAllUserPlaylists = async (accessToken) => {
   let playlists = [];
   let nextUrl = 'https://api.spotify.com/v1/me/playlists?limit=50';
 
-  console.log('--- Inizio fetchAllUserPlaylists ---');
-  let pageCount = 1;
-
   while (nextUrl) {
-    console.log(`Chiamata API per pagina ${pageCount}...`);
     const data = await makeSpotifyRequest(nextUrl, accessToken);
-    
-    // DEBUG: Stampa un riassunto di cosa abbiamo ricevuto
-    console.log(`Pagina ${pageCount}: Ricevuti ${data?.items?.length || 0} items. ` +
-                `Total dalla risposta API: ${data?.total}. Next URL: ${data?.next || 'Nessuno'}`);
-
     if (data && Array.isArray(data.items)) {
-      const validPlaylists = data.items.filter(p => p && p.id);
-      playlists.push(...validPlaylists);
-    } else {
-      console.warn('⚠️ La risposta API non contiene un array `items` valido. Interruzione del ciclo.');
-      break;
+        playlists.push(...data.items.filter(p => p && p.id));
     }
-    
     nextUrl = data.next;
-    pageCount++;
   }
-
-  console.log(`--- Fine fetchAllUserPlaylists. Playlist totali accumulate: ${playlists.length} ---`);
   return playlists;
 };
-
 
 /**
  * Recupera *tutte* le tracce di una singola playlist.
@@ -72,7 +55,7 @@ const fetchAllPlaylistTracks = async (playlistId, accessToken) => {
 // --- Funzioni Esportate ---
 
 /**
- * Calcola la durata di una playlist.
+ * Calcola la durata totale di una playlist.
  */
 const calculatePlaylistDuration = async (playlist, accessToken) => {
   const cacheKey = `duration:${playlist.id}`;
@@ -91,8 +74,9 @@ const calculatePlaylistDuration = async (playlist, accessToken) => {
   }
 };
 
+
 /**
- * Gestore della rotta per la pagina principale delle playlist, con LOG DI DEBUG.
+ * Gestore della rotta per la pagina principale che elenca le playlist dell'utente.
  */
 const getPlaylistsPage = async (req, res) => {
   const accessToken = req.session.accessToken;
@@ -103,33 +87,28 @@ const getPlaylistsPage = async (req, res) => {
   const page = validatePageNumber(req.query.page);
 
   try {
-    const allPlaylists = await fetchAllUserPlaylists(accessToken);
+    const playlists = await fetchAllUserPlaylists(accessToken);
+    playlists.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
 
-    // DEBUG: Controlliamo l'array completo prima di qualsiasi elaborazione
-    console.log(`DEBUG getPlaylistsPage: Array completo di playlist ricevuto: ${allPlaylists.length} elementi.`);
-    
-    allPlaylists.sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0));
-
-    const totalPages = Math.ceil(allPlaylists.length / PLAYLISTS_PER_PAGE);
-    const paginatedPlaylists = allPlaylists.slice(
+    const totalPages = Math.ceil(playlists.length / PLAYLISTS_PER_PAGE);
+    const paginatedPlaylists = playlists.slice(
       (page - 1) * PLAYLISTS_PER_PAGE,
       page * PLAYLISTS_PER_PAGE
     );
-    
-    // DEBUG: Controlliamo l'array dopo la paginazione
-    console.log(`DEBUG getPlaylistsPage: Paginazione applicata. Pagina: ${page}, Totale Pagine: ${totalPages}. ` +
-                `Elementi in questa pagina: ${paginatedPlaylists.length}`);
 
     const html = renderPlaylistsPage(paginatedPlaylists, page, totalPages);
     res.send(html);
 
   } catch (err) {
-    console.error('ERRORE CRITICO in getPlaylistsPage:', err.message, err.stack);
+    console.error('Errore in getPlaylistsPage:', err.message);
     if (err.message === 'UNAUTHORIZED') {
       req.session.destroy();
       return res.redirect('/start');
     }
-    handleError(res, 'Impossibile recuperare le playlist.');
+    if (err.message === 'RATE_LIMITED') {
+      return handleError(res, 'Troppe richieste. Riprova tra qualche minuto.', 429);
+    }
+    handleError(res, 'Impossibile recuperare le playlist. Riprova più tardi.');
   }
 };
 
@@ -141,8 +120,12 @@ const getPlaylistDetailPage = async (req, res) => {
   const { id: playlistId } = req.params;
   const accessToken = req.session.accessToken;
 
-  if (!validatePlaylistId(playlistId)) return handleError(res, 'ID playlist non valido', 400);
-  if (!accessToken) return res.redirect('/start');
+  if (!validatePlaylistId(playlistId)) {
+    return handleError(res, 'ID playlist non valido', 400);
+  }
+  if (!accessToken) {
+    return res.redirect('/start');
+  }
 
   const view = req.query.view === 'artist' ? 'artist' : 'album';
   const page = validatePageNumber(req.query.page);
@@ -229,7 +212,7 @@ const getPlaylistDetailPage = async (req, res) => {
     res.send(html);
 
   } catch (err) {
-    console.error(`Error fetching playlist details for ${playlistId}:`, err.message, err.stack);
+    console.error(`Error fetching playlist details for ${playlistId}:`, err.message);
     if (err.message === 'UNAUTHORIZED') {
       req.session.destroy();
       return res.redirect('/start');
