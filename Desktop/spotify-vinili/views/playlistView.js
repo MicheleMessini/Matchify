@@ -25,9 +25,10 @@ const GENRE_COLORS = [
   '#0984E3', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8'
 ];
 
-/**
- * Helper: Genera attributi data-* per lazy loading e analytics
- */
+/* ============================================================
+   HELPER DI BASE
+   ============================================================ */
+
 const generateDataAttributes = (type, id, extra = {}) => {
   const attrs = [`data-type="${type}"`, `data-id="${escapeHtml(id)}"`];
   Object.entries(extra).forEach(([key, value]) => {
@@ -36,18 +37,12 @@ const generateDataAttributes = (type, id, extra = {}) => {
   return attrs.join(' ');
 };
 
-/**
- * Helper: Genera meta tag SEO
- */
 const generateMetaTags = (title, description) => `
   <meta property="og:title" content="${escapeHtml(title)}">
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta name="description" content="${escapeHtml(description)}">
 `;
 
-/**
- * Helper: Genera l'HTML per l'immagine con lazy loading
- */
 const renderImage = (src, alt, className = 'card-img') => `
   <img 
     src="${escapeHtml(src || CONFIG.PLACEHOLDER_IMAGE)}" 
@@ -58,18 +53,16 @@ const renderImage = (src, alt, className = 'card-img') => `
   >
 `;
 
-/**
- * Helper: Formatta il numero di tracce con plurale corretto
- */
 const formatTrackCount = (count) => {
   if (count === 0) return 'Nessuna traccia';
   if (count === 1) return '1 traccia';
   return `${count} tracce`;
 };
 
-/**
- * Helper: Genera l'HTML per la card di una playlist
- */
+/* ============================================================
+   CARD
+   ============================================================ */
+
 const renderPlaylistCard = (playlist) => {
   const trackCount = playlist.tracks?.total || 0;
   const imageUrl = playlist.images?.[0]?.url || CONFIG.PLACEHOLDER_IMAGE;
@@ -94,9 +87,6 @@ const renderPlaylistCard = (playlist) => {
   `;
 };
 
-/**
- * Helper: Genera l'HTML per la card di un artista
- */
 const renderArtistCard = (artist) => `
   <article class="card artist-card" ${generateDataAttributes('artist', artist.id || artist.name)}>
     <div class="card-img-wrapper">
@@ -115,9 +105,6 @@ const renderArtistCard = (artist) => `
   </article>
 `;
 
-/**
- * Helper: Genera l'HTML per la card di un album
- */
 const renderAlbumCard = (album, playlistId) => {
   const completionPercentage = Math.round((album.tracksPresent / album.totalTracks) * 100);
   const isComplete = album.tracksPresent === album.totalTracks;
@@ -148,29 +135,14 @@ const renderAlbumCard = (album, playlistId) => {
   `;
 };
 
-/**
- * Helper: Genera grafico a torta SVG per i generi musicali
- */
+/* ============================================================
+   GRAFICO GENERI
+   ============================================================ */
+
 const renderGenrePieChart = (genres) => {
-  if (!genres || genres.length === 0) {
-    return '<p class="empty-genres">Nessun genere disponibile</p>';
-  }
+  if (!genres || genres.length === 0) return '<p class="empty-genres">Nessun genere disponibile</p>';
 
   const topGenres = genres.slice(0, 10);
-  const otherGenres = genres.slice(10);
-
-  let displayGenres = [...topGenres];
-  if (otherGenres.length > 0) {
-    const otherCount = otherGenres.reduce((sum, g) => sum + g.count, 0);
-    const otherPercentage = otherGenres.reduce((sum, g) => sum + g.percentage, 0);
-    displayGenres.push({
-      name: 'Altri generi',
-      count: otherCount,
-      percentage: otherPercentage,
-      artists: []
-    });
-  }
-
   let currentAngle = 0;
   const radius = 100;
   const centerX = 120;
@@ -188,11 +160,10 @@ const renderGenrePieChart = (genres) => {
     const start = polarToCartesian(centerX, centerY, radius, endAngle);
     const end = polarToCartesian(centerX, centerY, radius, startAngle);
     const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
-
     return `M ${centerX} ${centerY} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
   };
 
-  const slices = displayGenres.map((genre, index) => {
+  const slices = topGenres.map((genre, index) => {
     const angle = (genre.percentage / 100) * 360;
     const slice = {
       genre,
@@ -216,65 +187,37 @@ const renderGenrePieChart = (genres) => {
     </path>
   `).join('');
 
-  const legend = displayGenres.map((genre, index) => `
-    <div class="legend-item" data-genre="${escapeHtml(genre.name)}">
-      <span class="legend-color" style="background-color: ${GENRE_COLORS[index % GENRE_COLORS.length]}"></span>
+  const legend = topGenres.map((genre, index) => `
+    <div class="legend-item-minimal">
+      <span class="legend-dot" style="background-color: ${GENRE_COLORS[index % GENRE_COLORS.length]}"></span>
       <span class="legend-label">${escapeHtml(genre.name)}</span>
-      <span class="legend-value">${genre.percentage}%</span>
+      <span class="legend-percent">${genre.percentage}%</span>
     </div>
   `).join('');
 
   return `
-    <div class="genre-chart-container">
+    <div class="genre-chart-container minimal">
       <div class="pie-chart-wrapper">
         <svg viewBox="0 0 240 240" class="pie-chart">
           ${svgSlices}
           <circle cx="${centerX}" cy="${centerY}" r="50" fill="#1a1a1a" class="pie-hole"/>
         </svg>
         <div class="chart-center-text">
-          <div class="center-number">${displayGenres.length}</div>
+          <div class="center-number">${topGenres.length}</div>
           <div class="center-label">Generi</div>
         </div>
       </div>
-      <div class="genre-legend">
+      <div class="genre-legend minimal">
         ${legend}
       </div>
     </div>
   `;
 };
 
-/**
- * Helper: Genera lista dettagliata dei generi
- */
-const renderGenreList = (genres) => {
-  if (!genres || genres.length === 0) return '';
+/* ============================================================
+   ALTRI HELPER
+   ============================================================ */
 
-  return `
-    <div class="genre-list">
-      ${genres.map((genre, index) => `
-        <div class="genre-item">
-          <div class="genre-header">
-            <span class="genre-rank">#${index + 1}</span>
-            <h3 class="genre-name">${escapeHtml(genre.name)}</h3>
-            <span class="genre-percentage">${genre.percentage}%</span>
-          </div>
-          <div class="genre-stats">
-            <span class="genre-count">${genre.count} ${genre.count === 1 ? 'brano' : 'brani'}</span>
-            ${genre.artists.length > 0 ? `
-              <span class="genre-artists">
-                Artisti: ${escapeHtml(genre.artists.slice(0, 3).join(', '))}${genre.artists.length > 3 ? '...' : ''}
-              </span>
-            ` : ''}
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-};
-
-/**
- * Helper: Genera filtri e ordinamento con 3 bottoni
- */
 const renderFilters = (currentView, playlistId) => `
   <div class="filters-container">
     <div class="view-toggle" role="tablist">
@@ -303,9 +246,6 @@ const renderFilters = (currentView, playlistId) => `
   </div>
 `;
 
-/**
- * Helper: Genera messaggio vuoto personalizzato
- */
 const renderEmptyState = (type = 'playlist') => {
   const messages = {
     playlist: {
@@ -342,9 +282,6 @@ const renderEmptyState = (type = 'playlist') => {
   `;
 };
 
-/**
- * Helper: Genera layout HTML base
- */
 const generateBaseLayout = (title, content, additionalHead = '') => `
   <!DOCTYPE html>
   <html lang="it">
@@ -367,9 +304,10 @@ const generateBaseLayout = (title, content, additionalHead = '') => `
   </html>
 `;
 
-/**
- * Funzione principale: Genera l'HTML per la pagina di elenco delle playlist
- */
+/* ============================================================
+   PAGINE PRINCIPALI
+   ============================================================ */
+
 const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
   const hasPlaylists = playlists.length > 0;
   const totalPlaylists = playlists.length + (currentPage - 1) * CONFIG.PLAYLISTS_PER_PAGE;
@@ -413,9 +351,6 @@ const renderPlaylistsPage = (playlists, currentPage, totalPages) => {
   return generateBaseLayout('Matchify - Le tue Playlist', content, metaTags);
 };
 
-/**
- * Funzione principale: Genera l'HTML per la pagina di dettaglio di una playlist
- */
 const renderPlaylistDetailPage = (viewData) => {
   const { playlist, stats, view, page, contentData, totalPages } = viewData;
   const hasContent = contentData && contentData.length > 0;
@@ -434,10 +369,7 @@ const renderPlaylistDetailPage = (viewData) => {
           ? `
             <section class="genre-section" aria-label="Analisi generi musicali">
               ${hasContent
-                ? `
-                  ${renderGenrePieChart(contentData)}
-                  ${renderGenreList(contentData)}
-                `
+                ? renderGenrePieChart(contentData)
                 : renderEmptyState('genre')
               }
             </section>
@@ -475,6 +407,10 @@ const renderPlaylistDetailPage = (viewData) => {
 
   return generateBaseLayout(`${playlist.name} - Matchify`, content, metaTags);
 };
+
+/* ============================================================
+   ESPORTAZIONE
+   ============================================================ */
 
 module.exports = {
   renderPlaylistsPage,
