@@ -113,13 +113,12 @@ const fetchArtistsDetails = async (artistIds, accessToken) => {
 
 /**
  * Processa i dati grezzi delle tracce in un formato strutturato e calcola le statistiche.
- * MODIFICATO: Ora raccoglie gli ID degli artisti per il fetching successivo
  */
 const processPlaylistTracks = (allTracks) => {
     let totalDurationMs = 0;
     const albumsInPlaylist = {};
     const artistCounts = {};
-    const artistIds = new Set(); // Raccoglie gli ID per il fetch
+    const artistIds = new Set();
 
     for (const item of allTracks) {
         const { track } = item;
@@ -137,7 +136,7 @@ const processPlaylistTracks = (allTracks) => {
                         id: artist.id, 
                         name: artist.name, 
                         trackCount: 0,
-                        image: null // Sarà popolato dopo
+                        image: null
                     };
                 }
                 artistCounts[artist.id].trackCount++;
@@ -161,7 +160,6 @@ const processPlaylistTracks = (allTracks) => {
         albumsInPlaylist[album.id].tracksPresent++;
     }
 
-    // Calcolo percentuali e ordinamento
     const albums = Object.values(albumsInPlaylist);
     albums.forEach(album => album.percentage = album.totalTracks > 0 ? Math.round((album.tracksPresent / album.totalTracks) * 100) : 0);
     
@@ -177,7 +175,45 @@ const processPlaylistTracks = (allTracks) => {
         },
         artists: sortedArtists,
         albums: sortedAlbums,
-        artistIds: Array.from(artistIds) // Restituisce gli ID per il fetch
+        artistIds: Array.from(artistIds)
+    };
+};
+
+/**
+ * Calcola le statistiche dei generi musicali dalla lista di artisti arricchiti
+ */
+const calculateGenreStats = (enrichedArtists) => {
+    const genreCounts = {};
+    let totalGenreOccurrences = 0;
+
+    enrichedArtists.forEach(artist => {
+        if (artist.genres && artist.genres.length > 0) {
+            artist.genres.forEach(genre => {
+                if (!genreCounts[genre]) {
+                    genreCounts[genre] = { name: genre, count: 0, artists: [] };
+                }
+                genreCounts[genre].count += artist.trackCount;
+                if (!genreCounts[genre].artists.includes(artist.name)) {
+                    genreCounts[genre].artists.push(artist.name);
+                }
+                totalGenreOccurrences += artist.trackCount;
+            });
+        }
+    });
+
+    const genres = Object.values(genreCounts)
+        .map(genre => ({
+            ...genre,
+            percentage: totalGenreOccurrences > 0 
+                ? Math.round((genre.count / totalGenreOccurrences) * 100) 
+                : 0
+        }))
+        .sort((a, b) => b.count - a.count);
+
+    return {
+        genres,
+        totalGenreOccurrences,
+        uniqueGenres: genres.length
     };
 };
 
@@ -224,7 +260,6 @@ const getPlaylistsPage = async (req, res) => {
 
 /**
  * Gestore per la pagina di dettaglio di una singola playlist.
- * MODIFICATO: Ora recupera anche le immagini degli artisti
  */
 const getPlaylistDetailPage = async (req, res) => {
     const { id: playlistId } = req.params;
@@ -232,7 +267,7 @@ const getPlaylistDetailPage = async (req, res) => {
     if (!validatePlaylistId(playlistId)) return handleError(res, 'ID playlist non valido', 400);
     if (!accessToken) return res.redirect('/start');
 
-    const view = req.query.view === 'artist' ? 'artist' : 'album';
+    const view = ['artist', 'genre'].includes(req.query.view) ? req.query.view : 'album';
     const page = validatePageNumber(req.query.page);
 
     try {
@@ -251,7 +286,7 @@ const getPlaylistDetailPage = async (req, res) => {
             // Processa le tracce e ottieni gli ID degli artisti
             const processed = processPlaylistTracks(allTracks);
             
-            // Fetch delle immagini degli artisti (solo se vista artisti)
+            // Fetch delle immagini degli artisti
             let enrichedArtists = processed.artists;
             if (processed.artistIds.length > 0) {
                 console.log(`Recupero immagini per ${processed.artistIds.length} artisti...`);
@@ -259,29 +294,52 @@ const getPlaylistDetailPage = async (req, res) => {
                 enrichedArtists = enrichArtistsWithImages(processed.artists, artistDetails);
             }
             
+            // Calcola statistiche dei generi
+            const genreStats = calculateGenreStats(enrichedArtists);
+
             processedData = {
                 playlistInfo,
-                stats: processed.stats,
+                stats: {
+                    ...processed.stats,
+                    uniqueGenres: genreStats.uniqueGenres
+                },
                 artists: enrichedArtists,
-                albums: processed.albums
+                albums: processed.albums,
+                genres: genreStats.genres
             };
             
             // Cache per 30 minuti
             appCache.set(cacheKey, processedData, 1800);
-            console.log(`✅ Dati playlist ${playlistId} salvati in cache con ${enrichedArtists.length} artisti`);
+            console.log(`✅ Dati playlist ${playlistId} salvati in cache con ${enrichedArtists.length} artisti e ${genreStats.uniqueGenres} generi`);
         } else {
             console.log(`CACHE HIT: Trovati dettagli per playlist ${playlistId} in cache.`);
         }
 
-        const dataForView = view === 'artist' ? processedData.artists : processedData.albums;
-        const itemsPerPage = view === 'artist' ? CONFIG.MAX_ARTISTS_DISPLAYED : CONFIG.ALBUMS_PER_PAGE;
-        
-        const totalPages = Math.ceil(dataForView.length / itemsPerPage);
+        let dataForView;
+        let itemsPerPage;
+        let totalItems;
+
+        switch (view) {
+            case 'artist':
+                dataForView = processedData.artists;
+                itemsPerPage = CONFIG.MAX_ARTISTS_DISPLAYED;
+                break;
+            case 'genre':
+                dataForView = processedData.genres;
+                itemsPerPage = processedData.genres.length; // mostra tutti
+                break;
+            default: // album
+                dataForView = processedData.albums;
+                itemsPerPage = CONFIG.ALBUMS_PER_PAGE;
+        }
+
+        totalItems = dataForView.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
         const paginatedContent = dataForView.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
         const viewData = {
             playlist: processedData.playlistInfo,
-            stats: { ...processedData.stats, totalAlbums: processedData.albums.length },
+            stats: processedData.stats,
             view,
             page,
             contentData: paginatedContent,
