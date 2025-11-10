@@ -256,10 +256,10 @@ h1 {
 }
 
 /* ===============================
-   6. GRAFICO GENERI - STILE PULITO
+   6. GRAFICO GENERI - TUTTI I GENERI
    =============================== */
 
-/* Palette pastello armoniosa (10 colori) */
+/* Palette pastello estesa (20 colori) */
 :root {
   --genre-1: #D0F0C0;
   --genre-2: #FFD1DC;
@@ -271,6 +271,16 @@ h1 {
   --genre-8: #F8D8E4;
   --genre-9: #D4A5A5;
   --genre-10: #A8DADC;
+  --genre-11: #F1C0E8;
+  --genre-12: #CFBAE1;
+  --genre-13: #A3C4D9;
+  --genre-14: #88D8B0;
+  --genre-15: #FFC4D6;
+  --genre-16: #FAE3D9;
+  --genre-17: #BBDED6;
+  --genre-18: #8AC6D1;
+  --genre-19: #B8E0D2;
+  --genre-20: #D6EADF;
 }
 
 .genre-chart-wrapper {
@@ -293,6 +303,9 @@ h1 {
   gap: var(--space-sm);
   width: 100%;
   max-width: 320px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: var(--space-sm);
 }
 
 .legend-item {
@@ -307,6 +320,7 @@ h1 {
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 .legend-name {
@@ -317,11 +331,6 @@ h1 {
 .legend-percent {
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
-}
-
-/* Colori dinamici per i pallini (usati inline nel JS) */
-.legend-dot[style*="background"] {
-  border: 1px solid rgba(255,255,255,0.2);
 }
 
 /* ===============================
