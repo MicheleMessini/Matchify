@@ -143,73 +143,47 @@ const renderGenrePieChart = (genres) => {
   if (!genres || genres.length === 0) return '<p class="empty-genres">Nessun genere disponibile</p>';
 
   const topGenres = genres.slice(0, 10);
+  const PASTEL_COLORS = [
+    '#D0F0C0', '#FFD1DC', '#FFB6C1', '#FFDAC1', '#E2F0CB',
+    '#B5EAD7', '#C7CEEA', '#F8D8E4', '#D4A5A5', '#A8DADC'
+  ];
+
   let currentAngle = 0;
-  const radius = 100;
-  const centerX = 120;
-  const centerY = 120;
+  const radius = 90;
+  const centerX = 100;
+  const centerY = 100;
 
-  const polarToCartesian = (centerX, centerY, radius, angle) => {
+  const polarToCartesian = (cx, cy, r, angle) => {
     const rad = (angle - 90) * Math.PI / 180;
-    return {
-      x: centerX + radius * Math.cos(rad),
-      y: centerY + radius * Math.sin(rad)
-    };
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   };
 
-  const generateSlicePath = (startAngle, endAngle) => {
-    const start = polarToCartesian(centerX, centerY, radius, endAngle);
-    const end = polarToCartesian(centerX, centerY, radius, startAngle);
-    const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
-    return `M ${centerX} ${centerY} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
+  const generateSlicePath = (start, end) => {
+    const s = polarToCartesian(centerX, centerY, radius, end);
+    const e = polarToCartesian(centerX, centerY, radius, start);
+    const large = end - start <= 180 ? 0 : 1;
+    return `M ${centerX} ${centerY} L ${s.x} ${s.y} A ${radius} ${radius} 0 ${large} 0 ${e.x} ${e.y} Z`;
   };
 
-  const slices = topGenres.map((genre, index) => {
+  const slices = topGenres.map((genre, i) => {
     const angle = (genre.percentage / 100) * 360;
-    const slice = {
-      genre,
-      startAngle: currentAngle,
-      endAngle: currentAngle + angle,
-      color: GENRE_COLORS[index % GENRE_COLORS.length]
-    };
+    const path = generateSlicePath(currentAngle, currentAngle + angle);
     currentAngle += angle;
-    return slice;
-  });
+    return `<path d="${path}" fill="${PASTEL_COLORS[i % PASTEL_COLORS.length]}" class="pie-slice"/>`;
+  }).join('');
 
-  const svgSlices = slices.map(slice => `
-    <path
-      d="${generateSlicePath(slice.startAngle, slice.endAngle)}"
-      fill="${slice.color}"
-      class="pie-slice"
-      data-genre="${escapeHtml(slice.genre.name)}"
-      data-percentage="${slice.genre.percentage}"
-      data-count="${slice.genre.count}">
-      <title>${escapeHtml(slice.genre.name)}: ${slice.genre.percentage}%</title>
-    </path>
-  `).join('');
-
-  const legend = topGenres.map((genre, index) => `
-    <div class="legend-item-minimal">
-      <span class="legend-dot" style="background-color: ${GENRE_COLORS[index % GENRE_COLORS.length]}"></span>
-      <span class="legend-label">${escapeHtml(genre.name)}</span>
+  const legend = topGenres.map((genre, i) => `
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${PASTEL_COLORS[i % PASTEL_COLORS.length]}"></span>
+      <span class="legend-name">${escapeHtml(genre.name)}</span>
       <span class="legend-percent">${genre.percentage}%</span>
     </div>
   `).join('');
 
   return `
-    <div class="genre-chart-container minimal">
-      <div class="pie-chart-wrapper">
-        <svg viewBox="0 0 240 240" class="pie-chart">
-          ${svgSlices}
-          <circle cx="${centerX}" cy="${centerY}" r="50" fill="#1a1a1a" class="pie-hole"/>
-        </svg>
-        <div class="chart-center-text">
-          <div class="center-number">${topGenres.length}</div>
-          <div class="center-label">Generi</div>
-        </div>
-      </div>
-      <div class="genre-legend minimal">
-        ${legend}
-      </div>
+    <div class="genre-chart-wrapper">
+      <svg viewBox="0 0 200 200" class="pie-chart">${slices}</svg>
+      <div class="genre-legend clean">${legend}</div>
     </div>
   `;
 };
