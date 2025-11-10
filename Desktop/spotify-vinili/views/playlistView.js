@@ -142,10 +142,11 @@ const renderAlbumCard = (album, playlistId) => {
 const renderGenrePieChart = (genres) => {
   if (!genres || genres.length === 0) return '<p class="empty-genres">Nessun genere disponibile</p>';
 
-  const topGenres = genres.slice(0, 10);
   const PASTEL_COLORS = [
     '#D0F0C0', '#FFD1DC', '#FFB6C1', '#FFDAC1', '#E2F0CB',
-    '#B5EAD7', '#C7CEEA', '#F8D8E4', '#D4A5A5', '#A8DADC'
+    '#B5EAD7', '#C7CEEA', '#F8D8E4', '#D4A5A5', '#A8DADC',
+    '#F1C0E8', '#CFBAE1', '#A3C4D9', '#88D8B0', '#FFC4D6',
+    '#FAE3D9', '#BBDED6', '#8AC6D1', '#B8E0D2', '#D6EADF'
   ];
 
   let currentAngle = 0;
@@ -165,14 +166,14 @@ const renderGenrePieChart = (genres) => {
     return `M ${centerX} ${centerY} L ${s.x} ${s.y} A ${radius} ${radius} 0 ${large} 0 ${e.x} ${e.y} Z`;
   };
 
-  const slices = topGenres.map((genre, i) => {
+  const slices = genres.map((genre, i) => {
     const angle = (genre.percentage / 100) * 360;
     const path = generateSlicePath(currentAngle, currentAngle + angle);
     currentAngle += angle;
     return `<path d="${path}" fill="${PASTEL_COLORS[i % PASTEL_COLORS.length]}" class="pie-slice"/>`;
   }).join('');
 
-  const legend = topGenres.map((genre, i) => `
+  const legend = genres.map((genre, i) => `
     <div class="legend-item">
       <span class="legend-dot" style="background:${PASTEL_COLORS[i % PASTEL_COLORS.length]}"></span>
       <span class="legend-name">${escapeHtml(genre.name)}</span>
