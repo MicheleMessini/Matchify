@@ -256,42 +256,72 @@ h1 {
 }
 
 /* ===============================
-   6. GRAFICO GENERI MINIMAL
+   6. GRAFICO GENERI - STILE PULITO
    =============================== */
-.genre-chart-container.minimal {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-xl);
-  justify-content: center;
-  flex-wrap: wrap;
+
+/* Palette pastello armoniosa (10 colori) */
+:root {
+  --genre-1: #D0F0C0;
+  --genre-2: #FFD1DC;
+  --genre-3: #FFB6C1;
+  --genre-4: #FFDAC1;
+  --genre-5: #E2F0CB;
+  --genre-6: #B5EAD7;
+  --genre-7: #C7CEEA;
+  --genre-8: #F8D8E4;
+  --genre-9: #D4A5A5;
+  --genre-10: #A8DADC;
 }
-.genre-legend.minimal {
+
+.genre-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
+}
+
+.pie-chart {
+  width: 200px;
+  height: 200px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
+}
+
+.genre-legend.clean {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-sm);
-  max-height: 240px;
-  overflow-y: auto;
+  width: 100%;
+  max-width: 320px;
 }
-.legend-item-minimal {
+
+.legend-item {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   font-size: 0.95rem;
 }
+
 .legend-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.legend-label {
+
+.legend-name {
   flex: 1;
   color: var(--text-secondary);
 }
+
 .legend-percent {
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
+}
+
+/* Colori dinamici per i pallini (usati inline nel JS) */
+.legend-dot[style*="background"] {
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 /* ===============================
