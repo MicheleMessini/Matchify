@@ -177,7 +177,7 @@ const renderGenrePieChart = (genres) => {
     <div class="legend-item">
       <span class="legend-dot" style="background:${PASTEL_COLORS[i % PASTEL_COLORS.length]}"></span>
       <span class="legend-name">${escapeHtml(genre.name)}</span>
-      <span class="legend-percent">${genre.percentage}%</span>
+      <span class="legend-percent">${genre.percentage % 1 === 0 ? genre.percentage : genre.percentage.toFixed(1)}%</span>
     </div>
   `).join('');
 
