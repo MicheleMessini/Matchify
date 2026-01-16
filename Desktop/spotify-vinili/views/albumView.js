@@ -125,7 +125,7 @@ const renderAlbumDetailPage = (viewData) => {
                 const roundedG = Math.round(g / 10) * 10;
                 const roundedB = Math.round(b / 10) * 10;
                 
-                const key = `${roundedR},${roundedG},${roundedB}`;
+                const key = `${roundedR},${roundedG},${roundedB}`;  
                 colorCount[key] = (colorCount[key] || 0) + 1;
               }
               
