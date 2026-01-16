@@ -1,10 +1,8 @@
 // =================================================================
 // --- 1. Importazioni e Configurazione Iniziale ---
 // =================================================================
-
 // Carica le variabili d'ambiente dal file .env all'inizio di tutto
 require('dotenv').config();
-
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -19,7 +17,6 @@ const apiRoutes = require('./routes/apiRoutes');
 // =================================================================
 // --- 2. Inizializzazione dell'App Express ---
 // =================================================================
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -29,7 +26,6 @@ const PORT = process.env.PORT || 3000;
 // in un ambiente di produzione.
 app.set('trust proxy', 1);
 // ---> FINE MODIFICA <---
-
 
 // =================================================================
 // --- 3. Configurazione dei Middleware ---
@@ -52,10 +48,10 @@ app.use(session({
     }
 }));
 
-
 // =================================================================
 // --- 4. Montaggio dei Router ---
 // =================================================================
+
 // Questo è il cuore della refactorizzazione. Diciamo a Express di usare
 // un router specifico per ogni "ramo" del nostro sito.
 
@@ -67,20 +63,25 @@ app.use('/', playlistRoutes);
 
 // Monta il router degli album sul percorso /album.
 // Quindi una rotta definita come '/:id' in albumRoutes diventerà '/album/:id'
+// Include anche /album/proxy-image per il proxy delle immagini
 app.use('/album', albumRoutes);
 
 // Monta il router delle API sul percorso /api.
 // Quindi una rotta '/duration/:id' in apiRoutes diventerà '/api/duration/:id'
 app.use('/api', apiRoutes);
 
-
 // =================================================================
 // --- 5. Avvio del Server ---
 // =================================================================
 app.listen(PORT, () => {
     console.log(`🚀 Server in esecuzione su http://localhost:${PORT}`);
+    
     // Un piccolo check per le variabili d'ambiente critiche
     if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
         console.warn('⚠️  Attenzione: SPOTIFY_CLIENT_ID o SPOTIFY_CLIENT_SECRET non sono impostati nel file .env. L\'autenticazione fallirà.');
+    }
+    
+    if (!process.env.SESSION_SECRET) {
+        console.warn('⚠️  Attenzione: SESSION_SECRET non è impostato nel file .env. Le sessioni potrebbero non essere sicure.');
     }
 });
