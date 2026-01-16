@@ -8,6 +8,9 @@ const router = express.Router();
  * quando questo router viene montato.
  */
 
+// Rotta per il proxy delle immagini (risolve problemi CORS)
+router.get('/proxy-image', proxyImage);
+
 // ROTTA: GET /album/:id
 // DESCRIZIONE: Mostra la pagina di dettaglio per un album specifico.
 // CONTROLLER: getAlbumDetails gestisce la logica di recupero dati e renderizzazione.
