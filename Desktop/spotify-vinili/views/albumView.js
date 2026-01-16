@@ -125,13 +125,13 @@ const renderAlbumDetailPage = (viewData) => {
                 const roundedG = Math.round(g / 10) * 10;
                 const roundedB = Math.round(b / 10) * 10;
                 
-                const key = roundedR + ',' + roundedG + ',' + roundedB; 
+                const key = roundedR + ',' + roundedG + ',' + roundedB;
                 colorCount[key] = (colorCount[key] || 0) + 1;
               }
               
               // Trova il colore più frequente
               let maxCount = 0;
-              let dominantColor = '93, 58, 74'; // Colore di fallback
+              let dominantColor = '93, 58, 74';
               
               for (const color in colorCount) {
                 if (colorCount[color] > maxCount) {
@@ -141,10 +141,9 @@ const renderAlbumDetailPage = (viewData) => {
               }
               
               // Applica il gradiente con il colore dominante
-              header.style.background = `linear-gradient(180deg, rgb(${dominantColor}) 0%, #191414 100%)`;
+              header.style.background = 'linear-gradient(180deg, rgb(' + dominantColor + ') 0%, #191414 100%)';
               
             } catch (e) {
-              // Se c'è un errore CORS, usa il colore di fallback
               console.log('Impossibile estrarre il colore (CORS), uso il colore di fallback');
             }
           });
