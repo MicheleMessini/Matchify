@@ -46,9 +46,10 @@ const renderAlbumDetailPage = (viewData) => {
       <div class="container">
         
         <header class="album-header" id="albumHeader">
-          <img src="${escapeHtml(album.images?.[0]?.url || '/placeholder.png')}" 
+          <img src="${escapeHtml(album.images?.[0]?.proxyUrl || album.images?.[0]?.url || '/placeholder.png')}" 
                alt="${escapeHtml(album.name)}"
                class="album-cover" 
+               crossorigin="anonymous"
                onerror="this.src='/placeholder.png'">
           <div class="album-info">
             <p class="album-type">Album</p>
@@ -92,8 +93,6 @@ const renderAlbumDetailPage = (viewData) => {
           // Crea un canvas temporaneo
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
-          img.crossOrigin = 'Anonymous';
           
           img.addEventListener('load', function() {
             // Ridimensiona per performance
