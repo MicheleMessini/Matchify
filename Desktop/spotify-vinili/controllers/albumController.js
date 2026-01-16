@@ -1,5 +1,5 @@
 const { makeSpotifyRequest } = require('../services/spotifyService');
-const { validateAlbumId, validatePlaylistId, handleError, formatDuration } = require('../utils/helpers');
+const { validateAlbumId, validatePlaylistId, handleError } = require('../utils/helpers');
 const { renderAlbumDetailPage } = require('../views/albumView');
 
 /**
@@ -44,7 +44,13 @@ const getAlbumDetails = async (req, res) => {
       }
     }
     
-    // 4. Elaborazione dei Dati per la Vista
+    // 4. Modifica l'URL dell'immagine per usare il proxy locale
+    if (album.images && album.images.length > 0) {
+      const originalImageUrl = album.images[0].url;
+      album.images[0].proxyUrl = `/album/proxy-image?url=${encodeURIComponent(originalImageUrl)}`;
+    }
+    
+    // 5. Elaborazione dei Dati per la Vista
     const viewData = {
       album,
       tracksDetails,
@@ -52,12 +58,11 @@ const getAlbumDetails = async (req, res) => {
       playlistTrackUris,
     };
     
-    // 5. Renderizzazione della Pagina
+    // 6. Renderizzazione della Pagina
     const html = renderAlbumDetailPage(viewData);
     res.send(html);
-
   } catch (err) {
-    // 6. Gestione Errori
+    // 7. Gestione Errori
     console.error('Error fetching album details:', err.message);
     if (err.message === 'UNAUTHORIZED') {
       req.session.destroy();
@@ -70,6 +75,48 @@ const getAlbumDetails = async (req, res) => {
   }
 };
 
+/**
+ * Proxy per le immagini - risolve problemi CORS
+ * Permette l'estrazione del colore dominante nel browser
+ */
+const proxyImage = async (req, res) => {
+  const { url } = req.query;
+  
+  if (!url) {
+    return res.status(400).send('URL mancante');
+  }
+
+  try {
+    // Usa fetch nativo di Node.js 18+ o node-fetch
+    let fetch;
+    if (global.fetch) {
+      fetch = global.fetch;
+    } else {
+      fetch = (await import('node-fetch')).default;
+    }
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+
+    // Imposta gli header CORS corretti
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', response.headers.get('content-type'));
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache per 24 ore
+    
+    // Invia l'immagine
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.send(buffer);
+  } catch (err) {
+    console.error('Error proxying image:', err.message);
+    res.status(500).send('Errore nel recupero dell\'immagine');
+  }
+};
+
 module.exports = {
   getAlbumDetails,
+  proxyImage,
 };
