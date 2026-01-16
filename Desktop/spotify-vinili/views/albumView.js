@@ -45,7 +45,7 @@ const renderAlbumDetailPage = (viewData) => {
     <body>
       <div class="container">
         
-        <header class="album-header">
+        <header class="album-header" id="albumHeader">
           <img src="${escapeHtml(album.images?.[0]?.url || '/placeholder.png')}" 
                alt="${escapeHtml(album.name)}"
                class="album-cover" 
@@ -82,6 +82,83 @@ const renderAlbumDetailPage = (viewData) => {
         </footer>
         
       </div>
+      
+      <script>
+        // Estrae il colore dominante dall'immagine dell'album
+        function extractDominantColor() {
+          const img = document.querySelector('.album-cover');
+          const header = document.getElementById('albumHeader');
+          
+          // Crea un canvas temporaneo
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          img.crossOrigin = 'Anonymous';
+          
+          img.addEventListener('load', function() {
+            // Ridimensiona per performance
+            canvas.width = 100;
+            canvas.height = 100;
+            
+            ctx.drawImage(img, 0, 0, 100, 100);
+            
+            try {
+              const imageData = ctx.getImageData(0, 0, 100, 100);
+              const data = imageData.data;
+              
+              // Mappa per contare i colori
+              const colorCount = {};
+              
+              // Campiona ogni 4 pixel per performance
+              for (let i = 0; i < data.length; i += 16) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+                
+                // Ignora pixel trasparenti o troppo chiari/scuri
+                if (a < 125 || (r > 250 && g > 250 && b > 250) || (r < 10 && g < 10 && b < 10)) {
+                  continue;
+                }
+                
+                // Arrotonda i colori per raggruppare tonalità simili
+                const roundedR = Math.round(r / 10) * 10;
+                const roundedG = Math.round(g / 10) * 10;
+                const roundedB = Math.round(b / 10) * 10;
+                
+                const key = `${roundedR},${roundedG},${roundedB}`;
+                colorCount[key] = (colorCount[key] || 0) + 1;
+              }
+              
+              // Trova il colore più frequente
+              let maxCount = 0;
+              let dominantColor = '93, 58, 74'; // Colore di fallback
+              
+              for (const color in colorCount) {
+                if (colorCount[color] > maxCount) {
+                  maxCount = colorCount[color];
+                  dominantColor = color;
+                }
+              }
+              
+              // Applica il gradiente con il colore dominante
+              header.style.background = `linear-gradient(180deg, rgb(${dominantColor}) 0%, #191414 100%)`;
+              
+            } catch (e) {
+              // Se c'è un errore CORS, usa il colore di fallback
+              console.log('Impossibile estrarre il colore (CORS), uso il colore di fallback');
+            }
+          });
+          
+          // Se l'immagine è già caricata
+          if (img.complete) {
+            img.dispatchEvent(new Event('load'));
+          }
+        }
+        
+        // Esegui l'estrazione del colore
+        extractDominantColor();
+      </script>
     </body>
     </html>
   `;
