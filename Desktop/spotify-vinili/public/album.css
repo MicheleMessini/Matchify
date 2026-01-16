@@ -77,7 +77,8 @@ a {
     padding: var(--space-2xl) var(--space-xl);
     min-height: 340px;
     background: linear-gradient(180deg, #5c3a4a 0%, var(--spotify-black) 100%);
-    /* Puoi cambiare il colore del gradiente basandoti sulla copertina dell'album */
+    transition: background 0.5s ease;
+    /* Il colore del gradiente verrà impostato dinamicamente tramite JavaScript */
 }
 
 .album-cover {
