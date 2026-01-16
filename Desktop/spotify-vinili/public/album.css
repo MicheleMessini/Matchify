@@ -1,44 +1,327 @@
 /* ===============================
-   STILI PER ALBUMVIEW
+   STILI SPOTIFY-LIKE PER ALBUMVIEW
    =============================== */
 :root {
     --spotify-green: #1db954;
     --spotify-green-light: #1ed760;
     --spotify-black: #191414;
     --spotify-dark: #121212;
-    --text-primary: #f7f7f7;
+    --text-primary: #ffffff;
     --text-secondary: #b3b3b3;
     --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --fs-sm: 0.875rem;
+    --fs-base: 1rem;
     --fs-lg: clamp(1.125rem, 1rem + 0.625vw, 1.5rem);
-    --fs-3xl: clamp(2.5rem, 2rem + 2.5vw, 3.5rem);
+    --fs-3xl: clamp(2.5rem, 2rem + 2.5vw, 4rem);
+    --fw-medium: 500;
     --fw-bold: 700;
+    --fw-black: 900;
+    --space-sm: 0.5rem;
     --space-md: 1rem;
+    --space-lg: 1.5rem;
     --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --radius-base: 8px;
     --radius-full: 9999px;
 }
-html { box-sizing: border-box; }
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: inherit; }
-body { font-family: var(--font-primary); background: linear-gradient(180deg, var(--spotify-dark) 0%, var(--spotify-black) 100%); color: var(--text-primary); line-height: 1.6; }
-a { text-decoration: none; color: inherit; }
-.container { max-width: 1200px; margin-inline: auto; padding: var(--space-xl) var(--space-lg); }
-.text-center { text-align: center; }
-.text-muted { color: var(--text-secondary); }
-.text-primary { color: var(--spotify-green); }
-h1 { font-size: var(--fs-3xl); font-weight: var(--fw-bold); }
-h3 { font-size: 1.75rem; font-weight: var(--fw-bold); margin-bottom: 1rem; }
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.8rem var(--space-lg); border: 1px solid transparent; border-radius: var(--radius-full); font-size: 1rem; font-weight: var(--fw-bold); transition: transform 0.2s; }
-.btn:hover { transform: scale(1.05); }
-.btn-secondary { border-color: var(--gray-500); }
-.btn-secondary:hover { border-color: var(--text-primary); background: var(--gray-700); }
 
-/* Stili specifici per la pagina album */
-.album-header { display: flex; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl); flex-wrap: wrap; }
-.album-cover { width: 150px; height: 150px; border-radius: var(--radius-base); object-fit: cover; }
-.tracklist { list-style: none; }
-.track-item { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: var(--space-lg); padding: 0.75rem; border-radius: var(--radius-base); transition: background-color 0.2s; }
-.track-item:hover { background: rgba(255, 255, 255, 0.08); }
-.track-item.playing { background: rgba(29, 185, 84, 0.15); color: var(--spotify-green-light); }
-.track-item.playing .track-name, .track-item.playing .track-number { color: var(--spotify-green-light); }
-.track-number { color: var(--text-secondary); font-weight: var(--fw-medium); text-align: center; }
-.track-name { font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.track-duration { color: var(--text-secondary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+html { 
+    box-sizing: border-box; 
+}
+
+*, *::before, *::after { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: inherit; 
+}
+
+body { 
+    font-family: var(--font-primary); 
+    background: var(--spotify-black);
+    color: var(--text-primary); 
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+a { 
+    text-decoration: none; 
+    color: inherit; 
+}
+
+.container { 
+    max-width: 100%; 
+    margin: 0;
+    padding: 0;
+}
+
+.text-center { 
+    text-align: center; 
+}
+
+.text-muted { 
+    color: var(--text-secondary); 
+}
+
+.text-primary { 
+    color: var(--spotify-green); 
+}
+
+/* ===============================
+   HEADER ALBUM (Hero Section)
+   =============================== */
+.album-header {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-lg);
+    padding: var(--space-2xl) var(--space-xl);
+    min-height: 340px;
+    background: linear-gradient(180deg, #5c3a4a 0%, var(--spotify-black) 100%);
+    /* Puoi cambiare il colore del gradiente basandoti sulla copertina dell'album */
+}
+
+.album-cover {
+    width: 232px;
+    height: 232px;
+    border-radius: var(--radius-base);
+    object-fit: cover;
+    box-shadow: 0 4px 60px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+}
+
+.album-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.album-info h1 {
+    font-size: var(--fs-3xl);
+    font-weight: var(--fw-black);
+    line-height: 1.1;
+    margin-bottom: var(--space-sm);
+}
+
+.album-info p {
+    font-size: var(--fs-sm);
+    color: var(--text-primary);
+    font-weight: var(--fw-medium);
+}
+
+.album-info .text-muted {
+    font-size: var(--fs-base);
+    font-weight: var(--fw-bold);
+    margin-bottom: var(--space-sm);
+}
+
+.album-type {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.1em;
+}
+
+/* ===============================
+   SEZIONE TRACKLIST
+   =============================== */
+main {
+    background: var(--spotify-black);
+    padding: var(--space-xl);
+    min-height: 50vh;
+}
+
+h3 {
+    display: none; /* Nasconde il titolo "Tracklist" come in Spotify */
+}
+
+.tracklist {
+    list-style: none;
+    margin-top: var(--space-lg);
+}
+
+/* Header della tracklist (stile tabella) */
+.track-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr auto;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: var(--space-sm);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.track-item {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr auto;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.track-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.track-item.playing {
+    background: rgba(29, 185, 84, 0.1);
+}
+
+.track-number {
+    color: var(--text-secondary);
+    font-weight: var(--fw-medium);
+    text-align: center;
+    font-size: var(--fs-base);
+}
+
+.track-item.playing .track-number {
+    color: var(--spotify-green);
+}
+
+.track-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.track-name {
+    font-weight: var(--fw-medium);
+    font-size: var(--fs-base);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-item.playing .track-name {
+    color: var(--spotify-green);
+}
+
+.track-artists {
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-artists:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.track-album {
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-duration {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-medium);
+    justify-self: end;
+}
+
+.track-item.playing .track-duration {
+    color: var(--spotify-green);
+}
+
+/* ===============================
+   BOTTONI E FOOTER
+   =============================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    transition: all 0.2s;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.btn:hover {
+    transform: scale(1.05);
+    border-color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+footer {
+    background: var(--spotify-black);
+    padding: var(--space-xl);
+}
+
+/* ===============================
+   RESPONSIVE
+   =============================== */
+@media (max-width: 768px) {
+    .album-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-lg);
+        min-height: auto;
+    }
+
+    .album-cover {
+        width: 192px;
+        height: 192px;
+    }
+
+    .album-info h1 {
+        font-size: 2rem;
+    }
+
+    .track-item {
+        grid-template-columns: 30px 1fr auto;
+        gap: var(--space-sm);
+    }
+
+    .track-header {
+        grid-template-columns: 30px 1fr auto;
+    }
+
+    .track-album {
+        display: none;
+    }
+
+    main {
+        padding: var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .album-header {
+        padding: var(--space-md);
+    }
+
+    .album-cover {
+        width: 160px;
+        height: 160px;
+    }
+
+    .album-info h1 {
+        font-size: 1.5rem;
+    }
+}
