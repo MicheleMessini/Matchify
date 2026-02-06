@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth');
 const playlistRoutes = require('./routes/playlistRoutes');
 const albumRoutes = require('./routes/albumRoutes');
 const apiRoutes = require('./routes/apiRoutes');
+const genresRoutes = require('./routes/genresRoutes'); // <-- AGGIUNTO
 
 // =================================================================
 // --- 2. Inizializzazione dell'App Express ---
@@ -30,7 +31,6 @@ app.set('trust proxy', 1);
 // =================================================================
 // --- 3. Configurazione dei Middleware ---
 // =================================================================
-
 // Middleware per servire file statici (CSS, immagini, JS lato client)
 // Express cercherà i file richiesti nella cartella 'public'.
 app.use(express.static(path.join(__dirname, 'public')));
@@ -51,7 +51,6 @@ app.use(session({
 // =================================================================
 // --- 4. Montaggio dei Router ---
 // =================================================================
-
 // Questo è il cuore della refactorizzazione. Diciamo a Express di usare
 // un router specifico per ogni "ramo" del nostro sito.
 
@@ -69,6 +68,10 @@ app.use('/album', albumRoutes);
 // Monta il router delle API sul percorso /api.
 // Quindi una rotta '/duration/:id' in apiRoutes diventerà '/api/duration/:id'
 app.use('/api', apiRoutes);
+
+// Monta il router dei generi sul percorso /playlists.
+// Quindi una rotta '/:id/genres' in genresRoutes diventerà '/playlists/:id/genres'
+app.use('/playlists', genresRoutes); // <-- AGGIUNTO
 
 // =================================================================
 // --- 5. Avvio del Server ---
