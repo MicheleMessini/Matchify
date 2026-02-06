@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAlbumDetails } = require('../controllers/albumController');
+const { getAlbumDetails, proxyImage } = require('../controllers/albumController');
 const router = express.Router();
 
 /**
